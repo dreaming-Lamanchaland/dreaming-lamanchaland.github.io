@@ -473,6 +473,12 @@
     opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; z-index:20;
   }
   #toast.show{opacity:1; transform:translate(-50%,0)}
+  #admFab{position:fixed; right:10px; bottom:10px; z-index:7; width:38px; height:38px; border-radius:50%; border:1px solid rgba(228,190,100,.5); background:rgba(34,12,15,.85); color:#f1deb0; font-size:1.05rem; cursor:pointer}
+  .admH{margin:16px 0 8px; font-size:.95rem; color:var(--gold,#e4be64)}
+  #admBars{margin-top:10px}
+  #admBars label{display:grid; grid-template-columns:7em 1fr 2.4em; align-items:center; gap:8px; font-size:.82rem; margin:6px 0}
+  #admBars input[type=range]{width:100%}
+  #admBars output{text-align:right; font-variant-numeric:tabular-nums}
   .field{display:block; margin:0 0 10px}
   .field span{display:block; font-size:.78rem; color:var(--muted); margin-bottom:4px}
   .field input{
@@ -517,7 +523,7 @@
       <button type="button" id="btnA"></button>
       <button type="button" id="btnB"></button>
     </div>
-    <p id="disclaimer">이 게임은 림버스 컴퍼니의 2차 창작 게임입니다.<br>Project Moon과는 직접적인 관련이 없습니다.<br><span class="ver">v0.3.6</span></p>
+    <p id="disclaimer">이 게임은 림버스 컴퍼니의 2차 창작 게임입니다.<br>Project Moon과는 직접적인 관련이 없습니다.<br><span class="ver">v1.0.0</span></p>
   </footer>
 </main>
 
@@ -550,7 +556,7 @@
       <button type="button" class="secondary" id="acctBtn">☁ 계정 · 기록 동기화</button>
     </div>
     <p class="muted" id="saveInfo" style="margin:12px 0 0"></p>
-    <p class="disclaimer">이 게임은 림버스 컴퍼니의 2차 창작 게임입니다.<br>Project Moon과는 직접적인 관련이 없습니다.<br><span class="ver">v0.3.6</span></p>
+    <p class="disclaimer">이 게임은 림버스 컴퍼니의 2차 창작 게임입니다.<br>Project Moon과는 직접적인 관련이 없습니다.<br><span class="ver">v1.0.0</span></p>
   </div>
 </div>
 
@@ -578,6 +584,15 @@
         <button type="button" class="secondary" id="downBtn">☁ 클라우드 기록 불러오기</button>
         <button type="button" class="secondary" id="logoutBtn">로그아웃</button>
       </div>
+      <div id="admBox" hidden>
+        <h3 class="admH">🛠 운영자 도구</h3>
+        <div class="stack">
+          <button type="button" class="secondary" id="admUnlock">도감 · 엔딩 · 도전 과제 모두 해금</button>
+          <button type="button" class="secondary" id="admLock">도감 · 도전 과제 기록 초기화 (이 기기)</button>
+        </div>
+        <div id="admBars"></div>
+        <p class="muted" id="admHint" style="margin:6px 0 0"></p>
+      </div>
       <p class="muted" style="margin:12px 0 0">불러오면 이 기기의 저장 슬롯이 클라우드 기록으로 바뀌어요. 엔딩 도감은 양쪽을 합칩니다.</p>
     </div>
     <p class="msg" id="acctMsg" role="status"></p>
@@ -585,6 +600,7 @@
   </div>
 </div>
 
+<button type="button" id="admFab" hidden aria-label="운영자 도구">🛠</button>
 <div id="toast" role="status" aria-live="polite"></div>
 <div id="achStack" role="status" aria-live="polite"></div>
 <div id="lance" aria-hidden="true"><i></i></div>
@@ -1498,7 +1514,47 @@
     const a = acct();
     $('acctOut').hidden = !!a; $('acctIn').hidden = !a;
     if (a) $('acctWho').textContent = a.id;
+    renderAdmin();
   }
+  const syncFab = () => { const a = acct(); $('admFab').hidden = !(a && a.admin); };
+  /* 운영자 도구 (아이디 admin으로 로그인했을 때만 보인다 — 비밀번호는 서버 환경변수) */
+  function renderAdmin(){
+    syncFab();
+    const a = acct(), box = $('admBox');
+    box.hidden = !(a && a.admin);
+    if (box.hidden) return;
+    const live = S && !S.done && !S.quit;
+    const wrap = $('admBars'); wrap.innerHTML = '';
+    BAR_KEYS.forEach(k => {
+      const lab = document.createElement('label');
+      lab.innerHTML = `<span>${DATA.meta.bars[k].icon} ${DATA.meta.bars[k].label}</span><input type="range" min="${MIN}" max="${MAX}" step="1" ${live ? '' : 'disabled'}><output></output>`;
+      const inp = lab.querySelector('input'), out = lab.querySelector('output');
+      inp.value = live ? Math.round(S.bars[k]) : 50; out.textContent = inp.value;
+      inp.addEventListener('input', () => { out.textContent = inp.value; if (S && !S.done) { S.bars[k] = +inp.value; renderBars(); } });
+      wrap.appendChild(lab);
+    });
+    $('admHint').textContent = live ? '게이지는 바로 반영돼요. 끝(0·100)으로 옮기면 다음 선택에서 엔딩이 나옵니다.' : '진행 중인 꿈이 있을 때 게이지를 조절할 수 있어요. (닫고 꿈을 시작한 뒤 다시 열어 주세요)';
+  }
+  $('admFab').addEventListener('click', openAcct);
+  syncFab();
+  $('admUnlock').addEventListener('click', () => {
+    const a = acct(); if (!a || !a.admin) return;
+    progress.cards = progress.cards || {}; progress.ach = progress.ach || {};
+    DATA.cards.forEach(c => { if (c.name) progress.cards[c.id] = 1; });
+    Object.keys(DATA.endings).forEach(k => { if (!DATA.endings[k].final && !progress.endings[k]) progress.endings[k] = 1; });
+    ACH.forEach(x => { progress.ach[x.id] = 1; });
+    store.set(PROGRESS_KEY, progress); refreshTitle();
+    msg('도감 · 엔딩 · 도전 과제를 모두 해금했어요.', true);
+  });
+  $('admLock').addEventListener('click', () => {
+    const a = acct(); if (!a || !a.admin) return;
+    const b = $('admLock');
+    if (!b.dataset.arm) { b.dataset.arm = '1'; b.dataset.t = b.textContent; b.textContent = '한 번 더 누르면 정말 초기화해요'; setTimeout(() => { delete b.dataset.arm; b.textContent = b.dataset.t; }, 4000); return; }
+    delete b.dataset.arm; b.textContent = b.dataset.t;
+    progress.cards = {}; progress.ach = {}; progress.endings = {};
+    store.set(PROGRESS_KEY, progress); refreshTitle();
+    msg('기록을 초기화했어요.', true);
+  });
   function openAcct(){ msg(''); renderAcct(); acctEl.classList.add('open'); (acct() ? $('upBtn') : $('acctId')).focus(); }
   if (!API) $('acctBtn').hidden = true;
   $('acctBtn').addEventListener('click', openAcct);
@@ -1512,7 +1568,7 @@
     const r = await cloud(action, { id, password });
     $('loginBtn').disabled = $('registerBtn').disabled = false;
     if (!r.ok) { msg(r.msg); return; }
-    store.set(ACCT_KEY, { id: r.id || id, token: r.token });
+    store.set(ACCT_KEY, { id: r.id || id, token: r.token, admin: !!r.admin });
     $('acctPw').value = '';
     renderAcct();
     msg(action === 'register' ? '가입했어요. 저장하면 클라우드에도 올라갑니다.' : '로그인했어요.', true);
