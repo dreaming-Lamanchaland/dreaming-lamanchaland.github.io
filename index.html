@@ -604,6 +604,14 @@
           <input id="admTarget" autocapitalize="off" spellcheck="false" maxlength="20"></label>
         <button type="button" class="secondary" id="admReset">이 아이디의 비밀번호를 lamancha1 로 초기화</button>
         <div id="admBars"></div>
+        <div id="admJump">
+          <label class="field"><span>결정(턴) 수 — 계절과 하루가 이 값에 맞춰져요</span>
+            <input id="admTurn" type="number" inputmode="numeric" min="0" max="300" step="1"></label>
+          <label class="field"><span>바로 보고 싶은 카드 ID (선택, 예: c055)</span>
+            <input id="admCard" autocapitalize="off" spellcheck="false" maxlength="12"></label>
+          <button type="button" class="secondary" id="admGo">이동해서 다음 카드 뽑기</button>
+          <button type="button" class="secondary" id="admSave">지금 상태를 세이브에 저장</button>
+        </div>
         <p class="muted" id="admHint" style="margin:6px 0 0"></p>
       </div>
       <p class="muted" style="margin:12px 0 0">불러오면 이 기기의 저장 슬롯이 클라우드 기록으로 바뀌어요. 엔딩 도감은 양쪽을 합칩니다.</p>
@@ -1547,6 +1555,7 @@
       inp.addEventListener('input', () => { out.textContent = inp.value; if (S && !S.done) { S.bars[k] = +inp.value; renderBars(); } });
       wrap.appendChild(lab);
     });
+    $('admJump').hidden = !live; if (live) $('admTurn').value = S.turn;
     $('admHint').textContent = live ? '게이지는 바로 반영돼요. 끝(0·100)으로 옮기면 다음 선택에서 엔딩이 나옵니다.' : '진행 중인 꿈이 있을 때 게이지를 조절할 수 있어요. (닫고 꿈을 시작한 뒤 다시 열어 주세요)';
   }
   $('admReset').addEventListener('click', async () => {
@@ -1566,6 +1575,21 @@
     if (r.status === 401 && /로그인이/.test(r.msg || '')) { store.del(ACCT_KEY); renderAcct(); }
     if (r.ok) { $('pwOld').value = ''; $('pwNew').value = ''; $('pwBox').open = false; }
     msg(r.ok ? '비밀번호를 바꿨어요. 다른 기기에서는 다시 로그인해야 해요.' : r.msg, r.ok);
+  });
+  $('admGo').addEventListener('click', () => {
+    const a = acct(); if (!a || !a.admin || !S || S.done || S.quit) return;
+    const t = Math.max(0, Math.min(300, parseInt($('admTurn').value, 10) || 0)), id = $('admCard').value.trim();
+    if (id && !DATA.cards.some(c => c.id === id)) { msg('그런 카드 ID는 없어요.'); return; }
+    S.turn = t; S.autoAt = t;
+    if (id) S.queue.unshift(id);
+    applySeason();
+    $('metaTurn').textContent = S.turn ? `결정 ${S.turn}${S.flags.has('adventure') ? ' · 🗺 모험 모드' : ''}` : '';
+    acctEl.classList.remove('open');
+    showCard(drawCard());
+  });
+  $('admSave').addEventListener('click', () => {
+    const a = acct(); if (!a || !a.admin || !S || S.done || S.quit) return;
+    saveNow(); msg('지금 상태를 세이브에 저장했어요.', true);
   });
   $('admFab').addEventListener('click', openAcct);
   syncFab();
