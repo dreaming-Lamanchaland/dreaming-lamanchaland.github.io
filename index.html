@@ -603,6 +603,7 @@
         <label class="field" style="margin-top:10px"><span>비밀번호를 잊은 유저의 아이디</span>
           <input id="admTarget" autocapitalize="off" spellcheck="false" maxlength="20"></label>
         <button type="button" class="secondary" id="admReset">이 아이디의 비밀번호를 lamancha1 로 초기화</button>
+        <button type="button" class="secondary" id="admDel" style="margin-top:6px">이 아이디의 계정 삭제</button>
         <div id="admBars"></div>
         <div id="admJump">
           <label class="field"><span>결정(턴) 수 — 계절과 하루가 이 값에 맞춰져요</span>
@@ -1565,6 +1566,21 @@
     msg('처리 중…', true);
     const r = await cloud('adminReset', { target: t });
     msg(r.ok ? `"${r.target}" 의 비밀번호를 lamancha1 로 바꿨어요. 로그인 후 바로 바꾸라고 안내해 주세요.` : r.msg, r.ok);
+    if (r.ok) $('admTarget').value = '';
+  });
+  $('admDel').addEventListener('click', async () => {
+    const a = acct(); if (!a || !a.admin) return;
+    const t = $('admTarget').value.trim();
+    if (t.length < 3) { msg('삭제할 유저의 아이디를 적어 주세요.'); return; }
+    const b = $('admDel');
+    if (b.dataset.arm !== t) {   // 두 번 눌러야 지워진다 (같은 아이디로)
+      b.dataset.arm = t; b.dataset.t = b.dataset.t || b.textContent; b.textContent = `"${t}" 계정을 정말 삭제 — 한 번 더`;
+      setTimeout(() => { if (b.dataset.arm === t) { delete b.dataset.arm; b.textContent = b.dataset.t; } }, 4000); return;
+    }
+    delete b.dataset.arm; b.textContent = b.dataset.t;
+    msg('삭제 중…', true);
+    const r = await cloud('adminDelete', { target: t });
+    msg(r.ok ? `"${r.target}" 계정을 삭제했어요. 저장된 기록도 함께 지워졌어요.` : r.msg, r.ok);
     if (r.ok) $('admTarget').value = '';
   });
   $('pwBtn').addEventListener('click', async () => {

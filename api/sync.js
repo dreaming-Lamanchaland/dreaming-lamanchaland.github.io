@@ -31,6 +31,19 @@ const userKey = id => 'lamancha:user:' + sha('id:' + id);   // 아이디 원문 
 const ADMIN_ID = 'admin';
 const ADMIN_PW = (process.env.ADMIN_PASSWORD || '').trim();
 const RESET_PW = 'lamancha1';   // 운영자가 재설정해 줄 때 쓰는 임시 비밀번호 (받은 유저가 로그인 후 바로 바꾸도록 안내)
+// 사용할 수 없는 아이디 단어 (가입할 때만 검사). 새 단어는 여기에 추가하면 됩니다. 너무 짧은 단어는 정상 단어가 걸릴 수 있어 넣지 않았어요.
+const BLOCKED = [
+  '시발','씨발','씨팔','시팔','씨빨','병신','븅신','지랄','좆','존나','개새끼','개세끼','썅','쌍년','쌍놈','느금','니미','애미','엠창','씹새','씹년','씹창','씹덕','창녀','미친년','미친놈','섹스','야동','강간','한남충','김치녀','된장녀','맘충','급식충',
+  'fuck','shit','bitch','cunt','asshole','nigger','nigga','faggot','whore','slut','porn','dildo','pussy',
+  'admin','운영자','관리자',
+];
+const normForms = id => {   // _ 와 숫자로 돌려 쓴 표기도 잡는다
+  const a = id.replace(/_/g, '');
+  const b = a.replace(/[0-9]/g, '');
+  const leet = a.replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e').replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't').replace(/\$/g, 's');
+  return [a, b, leet];
+};
+const isBlockedId = id => normForms(id).some(f => BLOCKED.some(w => f.includes(w)));
 const ID_RE = /^[A-Za-z0-9_가-힣]{3,20}$/;
 
 async function getUser(id) {
@@ -82,6 +95,7 @@ module.exports = async function handler(req, res) {
 
     if (action === 'register') {
       if (id === ADMIN_ID) return fail(409, '이미 있는 아이디예요.');
+      if (isBlockedId(id)) return fail(400, '사용할 수 없는 아이디예요. 다른 아이디를 써 주세요.');
       const pw = String(b.password || '');
       if (pw.length < 6 || pw.length > 100) return fail(400, '비밀번호는 6자 이상이어야 해요.');
       const salt = crypto.randomBytes(16).toString('hex');
@@ -130,6 +144,18 @@ module.exports = async function handler(req, res) {
       user.hash = hashPw(RESET_PW, user.salt);
       user.tokens = [];
       await redis(['SET', userKey(target), JSON.stringify(user)]);
+      await redis(['DEL', 'lamancha:fail:' + sha('id:' + target)]);
+      return res.status(200).json({ ok: true, target });
+    }
+
+    // 운영자: 아이디를 입력하면 그 계정을 지운다 (욕설 아이디 정리용)
+    if (action === 'adminDelete') {
+      const adm = await getUser(id);
+      if (id !== ADMIN_ID || !authed(adm, b.token)) return fail(403, '운영자만 쓸 수 있어요.');
+      const target = String(b.target || '').trim().toLowerCase();
+      if (!ID_RE.test(target) || target === ADMIN_ID) return fail(400, '올바른 아이디가 아니에요.');
+      if (!(await getUser(target))) return fail(404, '그런 아이디는 없어요.');
+      await redis(['DEL', userKey(target)]);
       await redis(['DEL', 'lamancha:fail:' + sha('id:' + target)]);
       return res.status(200).json({ ok: true, target });
     }
