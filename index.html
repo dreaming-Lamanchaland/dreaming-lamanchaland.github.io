@@ -710,7 +710,7 @@
   const AUTO_KEY = 'lamancha_autosave_v1';   // 자동 저장 슬롯 (10결정마다, 이 기기에만)
   const AUTO_EVERY = 10;
   const ACCT_KEY = 'lamancha_acct_v1';   // {id, token}  (비밀번호는 저장하지 않음)
-  const API = null;               // 서버리스 함수 주소 (api/sync.js). null이면 클라우드 기능을 숨김
+  const API = 'https://lamancha-server.vercel.app/api/sync';               // 서버리스 함수 주소 (api/sync.js). null이면 클라우드 기능을 숨김
   const LOG_LIMIT = 70;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
