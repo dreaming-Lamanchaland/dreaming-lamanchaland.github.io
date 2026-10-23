@@ -26,7 +26,10 @@ const same = (a, b) => {
   const x = Buffer.from(a, 'hex'), y = Buffer.from(b, 'hex');
   return x.length === y.length && crypto.timingSafeEqual(x, y);
 };
-const userKey = id => 'lamancha:user:' + id;
+const userKey = id => 'lamancha:user:' + sha('id:' + id);   // 아이디 원문 대신 해시로 저장
+// 운영자 계정: 아이디는 'admin' 고정, 비밀번호는 Vercel 환경변수 ADMIN_PASSWORD (코드에는 없음). 일반 가입으로는 만들 수 없다.
+const ADMIN_ID = 'admin';
+const ADMIN_PW = (process.env.ADMIN_PASSWORD || '').trim();
 const ID_RE = /^[A-Za-z0-9_가-힣]{3,20}$/;
 
 async function getUser(id) {
@@ -65,6 +68,8 @@ module.exports = async function handler(req, res) {
   }
   if (req.method === 'OPTIONS') return res.status(204).end();
   const fail = (code, error) => res.status(code).json({ error });
+  // 점검용: 주소창에서 이 주소를 열면 서버 상태(비밀값은 보여주지 않고 있음/없음만)를 알려 준다
+  if (req.method === 'GET') return res.status(200).json({ version: 2, adminPasswordSet: !!ADMIN_PW, adminPasswordLength: ADMIN_PW.length, storageConnected: !!(REDIS_URL && REDIS_TOKEN) });
   if (req.method !== 'POST') return fail(405, '잘못된 요청이에요.');
   if (!REDIS_URL || !REDIS_TOKEN) return fail(500, '서버 저장소가 아직 연결되지 않았어요.');
 
@@ -75,6 +80,7 @@ module.exports = async function handler(req, res) {
     if (!ID_RE.test(id)) return fail(400, '아이디는 3~20자의 한글·영문·숫자·_ 만 쓸 수 있어요.');
 
     if (action === 'register') {
+      if (id === ADMIN_ID) return fail(409, '이미 있는 아이디예요.');
       const pw = String(b.password || '');
       if (pw.length < 6 || pw.length > 100) return fail(400, '비밀번호는 6자 이상이어야 해요.');
       const salt = crypto.randomBytes(16).toString('hex');
@@ -86,11 +92,22 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === 'login') {
-      const failKey = 'lamancha:fail:' + id;
+      const failKey = 'lamancha:fail:' + sha('id:' + id);
       const fails = Number(await redis(['GET', failKey])) || 0;
       if (fails >= MAX_FAILS) return fail(429, '시도가 너무 많아요. 10분 뒤에 다시 해주세요.');
-      const user = await getUser(id);
       const pw = String(b.password || '');
+      if (id === ADMIN_ID) {   // 운영자 로그인
+        const ok = !!ADMIN_PW && same(sha(pw), sha(ADMIN_PW));
+        if (!ok) {
+          await redis(['INCR', failKey]); await redis(['EXPIRE', failKey, 600]);
+          return fail(401, '아이디 또는 비밀번호가 맞지 않아요.');
+        }
+        await redis(['DEL', failKey]);
+        const adm = (await getUser(id)) || { salt: '', hash: '', tokens: [], data: null, created: Date.now() };
+        const token = await issueToken(adm, id);
+        return res.status(200).json({ id, token, admin: true });
+      }
+      const user = await getUser(id);
       if (!user || !same(hashPw(pw, user.salt), user.hash)) {
         await redis(['INCR', failKey]); await redis(['EXPIRE', failKey, 600]);
         return fail(401, '아이디 또는 비밀번호가 맞지 않아요.');
@@ -103,7 +120,7 @@ module.exports = async function handler(req, res) {
     if (action === 'save' || action === 'load') {
       const user = await getUser(id);
       if (!authed(user, b.token)) return fail(401, '로그인이 필요해요. 다시 로그인해 주세요.');
-      if (action === 'load') return res.status(200).json({ data: user.data || null, updated: user.updated || null });
+      if (action === 'load') return res.status(200).json({ data: user.data || null, updated: user.updated || null, admin: id === ADMIN_ID });
       const data = cleanData(b.data);
       if (!data) return fail(400, '저장할 수 없는 데이터예요.');
       user.data = data; user.updated = Date.now();
