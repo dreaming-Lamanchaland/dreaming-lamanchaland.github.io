@@ -44,6 +44,8 @@ const normForms = id => {   // _ 와 숫자로 돌려 쓴 표기도 잡는다
   return [a, b, leet];
 };
 const isBlockedId = id => normForms(id).some(f => BLOCKED.some(w => f.includes(w)));
+const kstDay = (offset = 0) => new Date(Date.now() + 9 * 3600e3 - offset * 86400e3).toISOString().slice(0, 10);
+const IDX_KEY = 'lamancha:ids';   // 가입한 아이디 목록 (운영자 모니터링용, 점수=가입 시각). 비밀번호는 여기에 없다.
 const ID_RE = /^[A-Za-z0-9_가-힣]{3,20}$/;
 
 async function getUser(id) {
@@ -90,6 +92,14 @@ module.exports = async function handler(req, res) {
   try {
     const b = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
     const action = b.action;
+    // 방문 신호: 그날 처음 들어온 기기가 한 번만 보낸다. 무작위 기기 번호만 받고 그 외 정보는 저장하지 않는다. (접속 중 인원은 세지 않는다 — 요청 수를 아끼려고)
+    if (action === 'ping') {
+      const cid = String(b.cid || '');
+      if (!/^[A-Za-z0-9]{12,40}$/.test(cid)) return fail(400, '잘못된 요청이에요.');
+      await redis(['PFADD', 'lamancha:visit:' + kstDay(), cid]);
+      await redis(['EXPIRE', 'lamancha:visit:' + kstDay(), 60 * 86400]);
+      return res.status(200).json({ ok: true });
+    }
     const id = String(b.id || '').trim().toLowerCase();
     if (!ID_RE.test(id)) return fail(400, '아이디는 3~20자의 한글·영문·숫자·_ 만 쓸 수 있어요.');
 
@@ -102,6 +112,7 @@ module.exports = async function handler(req, res) {
       const user = { salt, hash: hashPw(pw, salt), tokens: [], data: null, created: Date.now() };
       const ok = await redis(['SET', userKey(id), JSON.stringify(user), 'NX']);
       if (ok !== 'OK') return fail(409, '이미 있는 아이디예요.');
+      await redis(['ZADD', IDX_KEY, String(Date.now()), id]);
       const token = await issueToken(user, id);
       return res.status(200).json({ id, token });
     }
@@ -148,6 +159,26 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, target });
     }
 
+    // 운영자: 방문 현황 (오늘·어제 방문한 기기 수)
+    if (action === 'adminOnline') {
+      const adm = await getUser(id);
+      if (id !== ADMIN_ID || !authed(adm, b.token)) return fail(403, '운영자만 쓸 수 있어요.');
+      const today = Number(await redis(['PFCOUNT', 'lamancha:visit:' + kstDay()])) || 0;
+      const yesterday = Number(await redis(['PFCOUNT', 'lamancha:visit:' + kstDay(1)])) || 0;
+      return res.status(200).json({ ok: true, today, yesterday });
+    }
+
+    // 운영자: 가입 현황 (총 인원 + 최근 가입 순 아이디 목록, 금칙어에 걸리는 아이디 표시)
+    if (action === 'adminList') {
+      const adm = await getUser(id);
+      if (id !== ADMIN_ID || !authed(adm, b.token)) return fail(403, '운영자만 쓸 수 있어요.');
+      const total = Number(await redis(['ZCARD', IDX_KEY])) || 0;
+      const flat = (await redis(['ZREVRANGE', IDX_KEY, 0, 299, 'WITHSCORES'])) || [];
+      const users = [];
+      for (let i = 0; i < flat.length; i += 2) users.push({ id: flat[i], at: Number(flat[i + 1]) || 0, bad: isBlockedId(flat[i]) });
+      return res.status(200).json({ ok: true, total, shown: users.length, bad: users.filter(u => u.bad).length, day: users.filter(u => Date.now() - u.at < 86400000).length, users });
+    }
+
     // 운영자: 로그인 시도가 너무 많아 막힌 아이디의 차단을 풀어 준다
     if (action === 'adminUnlock') {
       const adm = await getUser(id);
@@ -166,7 +197,8 @@ module.exports = async function handler(req, res) {
       if (id !== ADMIN_ID || !authed(adm, b.token)) return fail(403, '운영자만 쓸 수 있어요.');
       const target = String(b.target || '').trim().toLowerCase();
       if (!ID_RE.test(target) || target === ADMIN_ID) return fail(400, '올바른 아이디가 아니에요.');
-      if (!(await getUser(target))) return fail(404, '그런 아이디는 없어요.');
+      await redis(['ZREM', IDX_KEY, target]);   // 목록에 남은 흔적도 같이 정리
+      if (!(await getUser(target))) return fail(404, '그런 아이디는 없어요. (목록에서는 지웠어요)');
       await redis(['DEL', userKey(target)]);
       await redis(['DEL', 'lamancha:fail:' + sha('id:' + target)]);
       return res.status(200).json({ ok: true, target });

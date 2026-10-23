@@ -460,7 +460,7 @@
     100%{transform:translateX(0)}
   }
   #acct{z-index:8}
-  #admPage{z-index:8}
+  #admPage,#admStatsPage{z-index:8}
   #achStack{position:fixed; left:50%; bottom:calc(24px + env(safe-area-inset-bottom)); transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:6px; max-width:90vw; z-index:21; pointer-events:none}
   #achStack .achp{
     position:relative; width:max-content; max-width:90vw; text-align:center; word-break:keep-all; padding:10px 16px; border-radius:22px; font-size:.85rem;
@@ -478,6 +478,11 @@
   #toast.show{opacity:1; transform:translate(-50%,0)}
   #admFab{position:fixed; right:10px; bottom:10px; z-index:7; width:38px; height:38px; border-radius:50%; border:1px solid rgba(228,190,100,.5); background:rgba(34,12,15,.85); color:#f1deb0; font-size:1.05rem; cursor:pointer}
   .admH{margin:16px 0 8px; font-size:.95rem; color:var(--gold,#e4be64)}
+  #admUsers{max-height:160px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; padding:4px 8px; font-size:.82rem}
+  #admUsers:empty{display:none}
+  #admUsers .u{display:flex; justify-content:space-between; gap:8px; padding:3px 0; cursor:pointer}
+  #admUsers .u small{color:var(--muted)}
+  #admUsers .u.bad b{color:#ff8f7a}
   #admBars{margin-top:10px}
   #admBars label{display:grid; grid-template-columns:7em 1fr 2.4em; align-items:center; gap:8px; font-size:.82rem; margin:6px 0}
   #admBars input[type=range]{width:100%}
@@ -608,6 +613,7 @@
 <div id="admPage" class="overlay" role="dialog" aria-modal="true" aria-labelledby="admH2">
   <div class="sheet">
     <h2 id="admH2">🛠 운영자 도구</h2>
+    <button type="button" class="secondary" id="admStatsBtn" style="margin-bottom:10px">📊 가입 · 방문 현황 보기</button>
 <div id="admBox">
       <div class="stack">
         <button type="button" class="secondary" id="admUnlock">도감 · 엔딩 · 도전 과제 모두 해금</button>
@@ -631,6 +637,19 @@
     </div>
     <p class="msg" id="admMsg" role="status"></p>
     <button type="button" class="secondary" id="admClose" style="margin-top:12px">닫기</button>
+  </div>
+</div>
+
+<!-- 운영자: 가입 · 접속 현황 (별도 페이지) -->
+<div id="admStatsPage" class="overlay" role="dialog" aria-modal="true" aria-labelledby="admSH">
+  <div class="sheet">
+    <h2 id="admSH">📊 가입 · 방문 현황</h2>
+    <p id="admOnline" class="muted" style="margin:0 0 6px">방문 현황 불러오는 중…</p>
+    <p id="admCount" class="muted" style="margin:0 0 6px">가입 현황 불러오는 중…</p>
+    <div id="admUsers"></div>
+    <button type="button" class="secondary" id="admRefresh" style="margin:8px 0 0">새로고침</button>
+    <p class="muted" style="margin:8px 0 0; font-size:.78rem">이 화면을 열어 두면 30초마다 자동으로 갱신돼요. 아이디를 누르면 운영자 도구의 대상 칸에 채워져요.</p>
+    <button type="button" class="secondary" id="admStatsClose" style="margin-top:12px">닫기</button>
   </div>
 </div>
 
@@ -1339,7 +1358,7 @@
   window.addEventListener('resize', () => { if (cardDexEl.classList.contains('open') && !bookBusy) { paginateBook(); bookIdx = Math.min(bookIdx, bookPages.length - 1); paintBook(); } });
 
   // 화면(오버레이) 한꺼번에 닫기 — 새 오버레이를 만들면 이 목록에만 추가하면 된다
-  const closeOverlays = () => [titleEl, quitAsk, acctEl, admPageEl, endingEl, loadAsk, cardDexEl].forEach(el => el.classList.remove('open', 'closing', 'opening'));
+  const closeOverlays = () => [titleEl, quitAsk, acctEl, admPageEl, admStatsEl, endingEl, loadAsk, cardDexEl].forEach(el => el.classList.remove('open', 'closing', 'opening'));
 
   /* ================= 마지막 엔딩 (도감 완성 + 모험 모드 FINAL.turn 이상) ================= */
   const FINAL = { turn: 170 };
@@ -1550,9 +1569,34 @@
     renderAdmin();
   }
   const admPageEl = $('admPage');
+  let admTimer = 0;
+  const admStatsEl = $('admStatsPage');
+  async function loadStats(){
+    const a = acct(); if (!(a && a.admin)) return;
+    const [o, r] = await Promise.all([cloud('adminOnline'), cloud('adminList')]);
+    $('admOnline').textContent = o.ok ? `오늘 방문 ${o.today}명 · 어제 ${o.yesterday}명 (기기 기준)` : '방문 현황을 못 불러왔어요: ' + o.msg;
+    if (!r.ok) { $('admCount').textContent = '가입 현황을 못 불러왔어요: ' + r.msg; return; }
+    $('admCount').textContent = `가입 ${r.total}명 · 최근 24시간 ${r.day}명 · 금칙어 의심 ${r.bad}명` + (r.total > r.shown ? ` (최근 ${r.shown}명만 표시)` : '');
+    const box = $('admUsers'); box.innerHTML = '';
+    r.users.slice().sort((x, y) => (y.bad - x.bad) || (y.at - x.at)).forEach(u => {
+      const row = document.createElement('div'); row.className = 'u' + (u.bad ? ' bad' : '');
+      const b = document.createElement('b'); b.textContent = u.id + (u.bad ? '  ⚠' : '');
+      const t = document.createElement('small'); const d = new Date(u.at); t.textContent = u.at ? `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : '';
+      row.append(b, t); row.title = '누르면 대상 아이디 칸에 채워져요';
+      row.addEventListener('click', () => { $('admTarget').value = u.id; });
+      box.appendChild(row);
+    });
+  }
+  const stopStats = () => { clearInterval(admTimer); admStatsEl.classList.remove('open'); admPageEl.classList.add('open'); };
+  $('admStatsBtn').addEventListener('click', () => {
+    admPageEl.classList.remove('open'); admStatsEl.classList.add('open'); loadStats();
+    clearInterval(admTimer); admTimer = setInterval(() => { if (admStatsEl.classList.contains('open')) loadStats(); else clearInterval(admTimer); }, 30000);
+  });
+  $('admRefresh').addEventListener('click', loadStats);
+  $('admStatsClose').addEventListener('click', stopStats);
   function openAdm(){ const a = acct(); if (!(a && a.admin)) return; msg(''); renderAdmin(); acctEl.classList.remove('open'); admPageEl.classList.add('open'); }
   $('admOpen').addEventListener('click', openAdm);
-  $('admClose').addEventListener('click', () => { admPageEl.classList.remove('open'); refreshTitle(); });
+  $('admClose').addEventListener('click', () => { clearInterval(admTimer); admPageEl.classList.remove('open'); refreshTitle(); });
   const syncFab = () => { const a = acct(); $('admFab').hidden = !(a && a.admin); };
   /* 운영자 도구 (아이디 admin으로 로그인했을 때만 보인다 — 비밀번호는 서버 환경변수) */
   function renderAdmin(){
@@ -1604,7 +1648,8 @@
     msg('삭제 중…', true);
     const r = await cloud('adminDelete', { target: t });
     msg(r.ok ? `"${r.target}" 계정을 삭제했어요. 저장된 기록도 함께 지워졌어요.` : r.msg, r.ok);
-    if (r.ok) $('admTarget').value = '';
+    if (r.ok) $('admTarget').value = ''; 
+    if (r.ok && admStatsEl.classList.contains('open')) loadStats();
   });
   $('pwBtn').addEventListener('click', async () => {
     const o = $('pwOld').value, n = $('pwNew').value;
@@ -1631,6 +1676,17 @@
     saveNow(); msg('지금 상태를 세이브에 저장했어요.', true);
   });
   $('admFab').addEventListener('click', openAdm);
+  /* 방문 신호: 그날 처음 열었을 때 딱 한 번, 무작위 기기 번호만 보낸다. 운영자 방문자 수 집계용이고 다른 정보는 보내지 않는다. */
+  if (API) (function visit(){
+    let cid = store.get('lamancha_cid_v1');
+    if (!cid || !/^[A-Za-z0-9]{12,40}$/.test(cid)) { cid = Array.from(crypto.getRandomValues(new Uint8Array(12)), x => (x % 36).toString(36)).join('') + Date.now().toString(36); store.set('lamancha_cid_v1', cid); }
+    const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+    if (store.get('lamancha_cid_day_v1') === today) return;
+    setTimeout(() => {
+      fetch(API, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ action:'ping', cid }) })
+        .then(r => { if (r.ok) store.set('lamancha_cid_day_v1', today); }).catch(() => {});
+    }, 3000);
+  })();
   syncFab();
   $('admUnlock').addEventListener('click', () => {
     const a = acct(); if (!a || !a.admin) return;
@@ -1755,7 +1811,7 @@
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && app.classList.contains('logopen')) { closeLog(); return; }
     if (app.classList.contains('logopen')) return;
-    if ([gate, endingEl, titleEl, quitAsk, acctEl, admPageEl, loadAsk, cardDexEl].some(o => o.classList.contains('open'))) return;
+    if ([gate, endingEl, titleEl, quitAsk, acctEl, admPageEl, admStatsEl, loadAsk, cardDexEl].some(o => o.classList.contains('open'))) return;
     if (e.key === 'ArrowLeft')  choose('A');
     if (e.key === 'ArrowRight') choose('B');
   });
