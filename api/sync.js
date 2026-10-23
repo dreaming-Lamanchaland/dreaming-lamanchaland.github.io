@@ -30,6 +30,7 @@ const userKey = id => 'lamancha:user:' + sha('id:' + id);   // 아이디 원문 
 // 운영자 계정: 아이디는 'admin' 고정, 비밀번호는 Vercel 환경변수 ADMIN_PASSWORD (코드에는 없음). 일반 가입으로는 만들 수 없다.
 const ADMIN_ID = 'admin';
 const ADMIN_PW = (process.env.ADMIN_PASSWORD || '').trim();
+const RESET_PW = 'lamancha1';   // 운영자가 재설정해 줄 때 쓰는 임시 비밀번호 (받은 유저가 로그인 후 바로 바꾸도록 안내)
 const ID_RE = /^[A-Za-z0-9_가-힣]{3,20}$/;
 
 async function getUser(id) {
@@ -115,6 +116,38 @@ module.exports = async function handler(req, res) {
       await redis(['DEL', failKey]);
       const token = await issueToken(user, id);
       return res.status(200).json({ id, token });
+    }
+
+    // 운영자: 아이디를 입력하면 그 계정의 비밀번호를 임시 비밀번호로 되돌리고, 로그인된 기기를 모두 로그아웃시킨다
+    if (action === 'adminReset') {
+      const adm = await getUser(id);
+      if (id !== ADMIN_ID || !authed(adm, b.token)) return fail(403, '운영자만 쓸 수 있어요.');
+      const target = String(b.target || '').trim().toLowerCase();
+      if (!ID_RE.test(target) || target === ADMIN_ID) return fail(400, '올바른 아이디가 아니에요.');
+      const user = await getUser(target);
+      if (!user) return fail(404, '그런 아이디는 없어요.');
+      user.salt = crypto.randomBytes(16).toString('hex');
+      user.hash = hashPw(RESET_PW, user.salt);
+      user.tokens = [];
+      await redis(['SET', userKey(target), JSON.stringify(user)]);
+      await redis(['DEL', 'lamancha:fail:' + sha('id:' + target)]);
+      return res.status(200).json({ ok: true, target });
+    }
+
+    // 유저: 로그인한 상태에서 자기 비밀번호 바꾸기 (현재 비밀번호 확인 필요, 다른 기기는 로그아웃)
+    if (action === 'changePw') {
+      if (id === ADMIN_ID) return fail(400, '운영자 비밀번호는 서버 설정에서 바꿔요.');
+      const user = await getUser(id);
+      if (!authed(user, b.token)) return fail(401, '로그인이 필요해요. 다시 로그인해 주세요.');
+      const oldPw = String(b.password || ''), newPw = String(b.newPassword || '');
+      if (!same(hashPw(oldPw, user.salt), user.hash)) return fail(401, '현재 비밀번호가 맞지 않아요.');
+      if (newPw.length < 6 || newPw.length > 100) return fail(400, '새 비밀번호는 6자 이상이어야 해요.');
+      const keep = sha(b.token);
+      user.salt = crypto.randomBytes(16).toString('hex');
+      user.hash = hashPw(newPw, user.salt);
+      user.tokens = (user.tokens || []).filter(h => h === keep);
+      await redis(['SET', userKey(id), JSON.stringify(user)]);
+      return res.status(200).json({ ok: true });
     }
 
     if (action === 'save' || action === 'load') {
