@@ -460,6 +460,7 @@
     100%{transform:translateX(0)}
   }
   #acct{z-index:8}
+  #admPage{z-index:8}
   #achStack{position:fixed; left:50%; bottom:calc(24px + env(safe-area-inset-bottom)); transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:6px; max-width:90vw; z-index:21; pointer-events:none}
   #achStack .achp{
     position:relative; width:max-content; max-width:90vw; text-align:center; word-break:keep-all; padding:10px 16px; border-radius:22px; font-size:.85rem;
@@ -584,6 +585,7 @@
       <div class="stack">
         <button type="button" class="primary" id="upBtn">☁ 지금 기록 올리기</button>
         <button type="button" class="secondary" id="downBtn">☁ 클라우드 기록 불러오기</button>
+        <button type="button" class="secondary" id="admOpen" hidden>🛠 운영자 도구 열기</button>
         <button type="button" class="secondary" id="logoutBtn">로그아웃</button>
       </div>
       <details id="pwBox" style="margin-top:12px">
@@ -594,28 +596,6 @@
           <input id="pwNew" type="password" autocomplete="new-password" maxlength="100"></label>
         <button type="button" class="secondary" id="pwBtn">비밀번호 변경</button>
       </details>
-      <div id="admBox" hidden>
-        <h3 class="admH">🛠 운영자 도구</h3>
-        <div class="stack">
-          <button type="button" class="secondary" id="admUnlock">도감 · 엔딩 · 도전 과제 모두 해금</button>
-          <button type="button" class="secondary" id="admLock">도감 · 도전 과제 기록 초기화 (이 기기)</button>
-        </div>
-        <label class="field" style="margin-top:10px"><span>비밀번호를 잊은 유저의 아이디</span>
-          <input id="admTarget" autocapitalize="off" spellcheck="false" maxlength="20"></label>
-        <button type="button" class="secondary" id="admReset">이 아이디의 비밀번호를 lamancha1 로 초기화</button>
-        <button type="button" class="secondary" id="admUnban" style="margin-top:6px">이 아이디의 로그인 차단 풀기</button>
-        <button type="button" class="secondary" id="admDel" style="margin-top:6px">이 아이디의 계정 삭제</button>
-        <div id="admBars"></div>
-        <div id="admJump">
-          <label class="field"><span>결정(턴) 수 — 계절과 하루가 이 값에 맞춰져요</span>
-            <input id="admTurn" type="number" inputmode="numeric" min="0" max="300" step="1"></label>
-          <label class="field"><span>바로 보고 싶은 카드 ID (선택, 예: c055)</span>
-            <input id="admCard" autocapitalize="off" spellcheck="false" maxlength="12"></label>
-          <button type="button" class="secondary" id="admGo">이동해서 다음 카드 뽑기</button>
-          <button type="button" class="secondary" id="admSave">지금 상태를 세이브에 저장</button>
-        </div>
-        <p class="muted" id="admHint" style="margin:6px 0 0"></p>
-      </div>
       <p class="muted" style="margin:12px 0 0">불러오면 이 기기의 저장 슬롯이 클라우드 기록으로 바뀌어요. 엔딩 도감은 양쪽을 합칩니다.</p>
     </div>
     <p class="msg" id="acctMsg" role="status"></p>
@@ -624,6 +604,36 @@
 </div>
 
 <button type="button" id="admFab" hidden aria-label="운영자 도구">🛠</button>
+<!-- 운영자 도구 (별도 페이지) -->
+<div id="admPage" class="overlay" role="dialog" aria-modal="true" aria-labelledby="admH2">
+  <div class="sheet">
+    <h2 id="admH2">🛠 운영자 도구</h2>
+<div id="admBox">
+      <div class="stack">
+        <button type="button" class="secondary" id="admUnlock">도감 · 엔딩 · 도전 과제 모두 해금</button>
+        <button type="button" class="secondary" id="admLock">도감 · 도전 과제 기록 초기화 (이 기기)</button>
+      </div>
+      <label class="field" style="margin-top:10px"><span>대상 유저 아이디 (아래 세 버튼에 쓰여요)</span>
+        <input id="admTarget" autocapitalize="off" spellcheck="false" maxlength="20"></label>
+      <button type="button" class="secondary" id="admReset">이 아이디의 비밀번호를 lamancha1 로 초기화</button>
+      <button type="button" class="secondary" id="admUnban" style="margin-top:6px">이 아이디의 로그인 차단 풀기</button>
+      <button type="button" class="secondary" id="admDel" style="margin-top:6px">이 아이디의 계정 삭제</button>
+      <div id="admBars"></div>
+      <div id="admJump">
+        <label class="field"><span>결정(턴) 수 — 계절과 하루가 이 값에 맞춰져요</span>
+          <input id="admTurn" type="number" inputmode="numeric" min="0" max="300" step="1"></label>
+        <label class="field"><span>바로 보고 싶은 카드 ID (선택, 예: c055)</span>
+          <input id="admCard" autocapitalize="off" spellcheck="false" maxlength="12"></label>
+        <button type="button" class="secondary" id="admGo">이동해서 다음 카드 뽑기</button>
+        <button type="button" class="secondary" id="admSave">지금 상태를 세이브에 저장</button>
+      </div>
+      <p class="muted" id="admHint" style="margin:6px 0 0"></p>
+    </div>
+    <p class="msg" id="admMsg" role="status"></p>
+    <button type="button" class="secondary" id="admClose" style="margin-top:12px">닫기</button>
+  </div>
+</div>
+
 <div id="toast" role="status" aria-live="polite"></div>
 <div id="achStack" role="status" aria-live="polite"></div>
 <div id="lance" aria-hidden="true"><i></i></div>
@@ -1329,7 +1339,7 @@
   window.addEventListener('resize', () => { if (cardDexEl.classList.contains('open') && !bookBusy) { paginateBook(); bookIdx = Math.min(bookIdx, bookPages.length - 1); paintBook(); } });
 
   // 화면(오버레이) 한꺼번에 닫기 — 새 오버레이를 만들면 이 목록에만 추가하면 된다
-  const closeOverlays = () => [titleEl, quitAsk, acctEl, endingEl, loadAsk, cardDexEl].forEach(el => el.classList.remove('open', 'closing', 'opening'));
+  const closeOverlays = () => [titleEl, quitAsk, acctEl, admPageEl, endingEl, loadAsk, cardDexEl].forEach(el => el.classList.remove('open', 'closing', 'opening'));
 
   /* ================= 마지막 엔딩 (도감 완성 + 모험 모드 FINAL.turn 이상) ================= */
   const FINAL = { turn: 170 };
@@ -1532,21 +1542,25 @@
   $('saveBtn').addEventListener('click', saveNow);
 
   /* 계정 창 */
-  const msg = (t, ok) => { const m = $('acctMsg'); m.textContent = t || ''; m.className = 'msg' + (ok ? ' ok' : ''); };
+  const msg = (t, ok) => { ['acctMsg','admMsg'].forEach(i => { const m = $(i); m.textContent = t || ''; m.className = 'msg' + (ok ? ' ok' : ''); }); };
   function renderAcct(){
     const a = acct();
     $('acctOut').hidden = !!a; $('acctIn').hidden = !a;
     if (a) $('acctWho').textContent = a.id;
     renderAdmin();
   }
+  const admPageEl = $('admPage');
+  function openAdm(){ const a = acct(); if (!(a && a.admin)) return; msg(''); renderAdmin(); acctEl.classList.remove('open'); admPageEl.classList.add('open'); }
+  $('admOpen').addEventListener('click', openAdm);
+  $('admClose').addEventListener('click', () => { admPageEl.classList.remove('open'); refreshTitle(); });
   const syncFab = () => { const a = acct(); $('admFab').hidden = !(a && a.admin); };
   /* 운영자 도구 (아이디 admin으로 로그인했을 때만 보인다 — 비밀번호는 서버 환경변수) */
   function renderAdmin(){
     syncFab();
     const a = acct(), box = $('admBox');
     $('pwBox').hidden = !!(a && a.admin);
-    box.hidden = !(a && a.admin);
-    if (box.hidden) return;
+    $('admOpen').hidden = !(a && a.admin);
+    if (!(a && a.admin)) { admPageEl.classList.remove('open'); return; }
     const live = S && !S.done && !S.quit;
     const wrap = $('admBars'); wrap.innerHTML = '';
     BAR_KEYS.forEach(k => {
@@ -1609,14 +1623,14 @@
     if (id) S.queue.unshift(id);
     applySeason();
     $('metaTurn').textContent = S.turn ? `결정 ${S.turn}${S.flags.has('adventure') ? ' · 🗺 모험 모드' : ''}` : '';
-    acctEl.classList.remove('open');
+    admPageEl.classList.remove('open');
     showCard(drawCard());
   });
   $('admSave').addEventListener('click', () => {
     const a = acct(); if (!a || !a.admin || !S || S.done || S.quit) return;
     saveNow(); msg('지금 상태를 세이브에 저장했어요.', true);
   });
-  $('admFab').addEventListener('click', openAcct);
+  $('admFab').addEventListener('click', openAdm);
   syncFab();
   $('admUnlock').addEventListener('click', () => {
     const a = acct(); if (!a || !a.admin) return;
@@ -1741,7 +1755,7 @@
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && app.classList.contains('logopen')) { closeLog(); return; }
     if (app.classList.contains('logopen')) return;
-    if ([gate, endingEl, titleEl, quitAsk, acctEl, loadAsk, cardDexEl].some(o => o.classList.contains('open'))) return;
+    if ([gate, endingEl, titleEl, quitAsk, acctEl, admPageEl, loadAsk, cardDexEl].some(o => o.classList.contains('open'))) return;
     if (e.key === 'ArrowLeft')  choose('A');
     if (e.key === 'ArrowRight') choose('B');
   });
