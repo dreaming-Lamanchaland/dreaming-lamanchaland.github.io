@@ -148,6 +148,18 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, target });
     }
 
+    // 운영자: 로그인 시도가 너무 많아 막힌 아이디의 차단을 풀어 준다
+    if (action === 'adminUnlock') {
+      const adm = await getUser(id);
+      if (id !== ADMIN_ID || !authed(adm, b.token)) return fail(403, '운영자만 쓸 수 있어요.');
+      const target = String(b.target || '').trim().toLowerCase();
+      if (!ID_RE.test(target)) return fail(400, '올바른 아이디가 아니에요.');
+      const key = 'lamancha:fail:' + sha('id:' + target);
+      const had = Number(await redis(['GET', key])) || 0;
+      await redis(['DEL', key]);
+      return res.status(200).json({ ok: true, target, had });
+    }
+
     // 운영자: 아이디를 입력하면 그 계정을 지운다 (욕설 아이디 정리용)
     if (action === 'adminDelete') {
       const adm = await getUser(id);

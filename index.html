@@ -603,6 +603,7 @@
         <label class="field" style="margin-top:10px"><span>비밀번호를 잊은 유저의 아이디</span>
           <input id="admTarget" autocapitalize="off" spellcheck="false" maxlength="20"></label>
         <button type="button" class="secondary" id="admReset">이 아이디의 비밀번호를 lamancha1 로 초기화</button>
+        <button type="button" class="secondary" id="admUnban" style="margin-top:6px">이 아이디의 로그인 차단 풀기</button>
         <button type="button" class="secondary" id="admDel" style="margin-top:6px">이 아이디의 계정 삭제</button>
         <div id="admBars"></div>
         <div id="admJump">
@@ -1567,6 +1568,14 @@
     const r = await cloud('adminReset', { target: t });
     msg(r.ok ? `"${r.target}" 의 비밀번호를 lamancha1 로 바꿨어요. 로그인 후 바로 바꾸라고 안내해 주세요.` : r.msg, r.ok);
     if (r.ok) $('admTarget').value = '';
+  });
+  $('admUnban').addEventListener('click', async () => {
+    const a = acct(); if (!a || !a.admin) return;
+    const t = $('admTarget').value.trim();
+    if (t.length < 3) { msg('차단을 풀 유저의 아이디를 적어 주세요.'); return; }
+    msg('처리 중…', true);
+    const r = await cloud('adminUnlock', { target: t });
+    msg(r.ok ? (r.had ? `"${r.target}" 의 로그인 차단을 풀었어요. (실패 ${r.had}회 기록 삭제)` : `"${r.target}" 는 지금 차단 상태가 아니에요.`) : r.msg, r.ok);
   });
   $('admDel').addEventListener('click', async () => {
     const a = acct(); if (!a || !a.admin) return;
