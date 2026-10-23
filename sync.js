@@ -29,7 +29,7 @@ const same = (a, b) => {
 const userKey = id => 'lamancha:user:' + sha('id:' + id);   // 아이디 원문 대신 해시로 저장
 // 운영자 계정: 아이디는 'admin' 고정, 비밀번호는 Vercel 환경변수 ADMIN_PASSWORD (코드에는 없음). 일반 가입으로는 만들 수 없다.
 const ADMIN_ID = 'admin';
-const ADMIN_PW = process.env.ADMIN_PASSWORD || '';
+const ADMIN_PW = (process.env.ADMIN_PASSWORD || '').trim();
 const ID_RE = /^[A-Za-z0-9_가-힣]{3,20}$/;
 
 async function getUser(id) {
@@ -68,6 +68,8 @@ module.exports = async function handler(req, res) {
   }
   if (req.method === 'OPTIONS') return res.status(204).end();
   const fail = (code, error) => res.status(code).json({ error });
+  // 점검용: 주소창에서 이 주소를 열면 서버 상태(비밀값은 보여주지 않고 있음/없음만)를 알려 준다
+  if (req.method === 'GET') return res.status(200).json({ version: 2, adminPasswordSet: !!ADMIN_PW, adminPasswordLength: ADMIN_PW.length, storageConnected: !!(REDIS_URL && REDIS_TOKEN) });
   if (req.method !== 'POST') return fail(405, '잘못된 요청이에요.');
   if (!REDIS_URL || !REDIS_TOKEN) return fail(500, '서버 저장소가 아직 연결되지 않았어요.');
 
