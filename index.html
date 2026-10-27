@@ -510,6 +510,8 @@
   .hpage.txt p{font-size:.98rem; line-height:1.8; margin:0 0 14px}
   #helpEl .sheet.spin{animation:helpspin .72s cubic-bezier(.45,.05,.3,1)}
   @keyframes helpspin{from{transform:perspective(900px) rotateY(0)} to{transform:perspective(900px) rotateY(360deg)}}
+  #helpEl .sheet.spinout{animation:helpspinout .72s cubic-bezier(.45,.05,.3,1) forwards}
+  @keyframes helpspinout{from{transform:perspective(900px) rotateY(0) scale(1); opacity:1} 75%{opacity:1} to{transform:perspective(900px) rotateY(360deg) scale(.85); opacity:0}}
   #helpNav{display:flex; align-items:center; justify-content:center; gap:18px; margin-top:10px; color:var(--muted); font-size:.9rem}
   #helpNav button{width:44px; padding:6px 0}
   #helpNav button:disabled{opacity:.35}
@@ -558,7 +560,7 @@
   #app{color:var(--text); --c-harmony:#b13a35; --c-fun:#c18a1c; --c-fame:#7d5fb0; --c-kin:#c4668c; --warn:#c8402a;
     background-color:var(--bg);
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .38  0 0 0 0 .27  0 0 0 0 .13  0 0 0 .26 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-  #bars{background:color-mix(in srgb, var(--panel) 70%, transparent)}
+  #bars{background:color-mix(in srgb, var(--panel) 45%, transparent)}
   .icon .base{fill:rgba(60,40,20,.14); stroke:var(--line)}
   #card{background-color:var(--card); background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .38  0 0 0 0 .27  0 0 0 0 .13  0 0 0 .2 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     border-radius:6px 6px 10px 10px; box-shadow:2px 4px 10px rgba(60,40,20,.28), 0 1px 0 rgba(255,255,255,.5) inset}
@@ -587,7 +589,13 @@
   #app[data-season="autumn"] #sfxfront i:nth-child(3n){background-color:#b8321f}
   #app[data-season="autumn"] #sfxfront i:nth-child(3n+1){background-color:#e8a233}
   #app[data-season="summer"] #sfxfront i{background:radial-gradient(circle,#fff6c4 0 32%,#f6c744 34% 100%); border-radius:50%; box-shadow:0 1.5px 2px rgba(120,80,0,.45); border:1px solid rgba(200,140,20,.6)}
+  /* 여름: 햇살 배경 효과는 없앰 (금빛 종이 입자만 남김) */
+  #sfxback .su::before,#sfxback .su::after{display:none}
   #app[data-season="winter"] #sfxpile b{background:linear-gradient(to top, rgba(255,255,255,.95), rgba(255,255,255,.6) 55%, rgba(255,255,255,0)); box-shadow:0 -1px 2px rgba(90,110,140,.18)}
+  /* ========== 모험 모드 달빛: 밝은 종이 위에서도 보이도록 푸른 먹빛으로 ========== */
+  #moon{mix-blend-mode:multiply; background:radial-gradient(ellipse 95% 42% at 50% -4%, rgba(60,125,190,.55), transparent 74%), radial-gradient(ellipse 60% 32% at 92% 3%, rgba(40,100,175,.38), transparent 74%), radial-gradient(ellipse 70% 30% at 6% 100%, rgba(60,110,170,.22), transparent 76%)}
+  #app[data-adv="1"] .art::before,#app.moonburst .art::before{mix-blend-mode:multiply; background:radial-gradient(circle, rgba(55,115,185,.34) 0, rgba(70,130,195,.2) 38%, rgba(95,155,215,.3) 55%, transparent 68%)}
+  #moonburst{mix-blend-mode:normal; background:radial-gradient(ellipse 85% 48% at 50% 30%, rgba(60,130,205,.6), rgba(40,100,170,.3) 48%, transparent 76%)}
 </style>
 </head>
 <body>
@@ -1811,7 +1819,13 @@
     document.addEventListener('keydown', e => { if (!helpEl.classList.contains('open')) return; if (e.key === 'ArrowLeft') { show(pg - 1, 1); e.preventDefault(); } else if (e.key === 'ArrowRight') { show(pg + 1, 1); e.preventDefault(); } });
     let sx = null; helpEl.addEventListener('pointerdown', e => { sx = e.clientX; }); helpEl.addEventListener('pointerup', e => { if (sx !== null && Math.abs(e.clientX - sx) > 50) show(pg + (e.clientX < sx ? 1 : -1), 1); sx = null; });
     const open = () => { show(0); helpEl.classList.add('open'); $('helpClose').focus(); };
-    const close = () => helpEl.classList.remove('open');
+    let closing = false;
+    const close = () => {   // 닫을 때도 한 바퀴 돌면서 사라진다
+      if (!helpEl.classList.contains('open') || closing) return;
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) { helpEl.classList.remove('open'); return; }
+      closing = true; const sh = helpEl.firstElementChild; clearTimeout(spinT); sh.classList.remove('spin'); void sh.offsetWidth; sh.classList.add('spinout');
+      setTimeout(() => { helpEl.classList.remove('open'); sh.classList.remove('spinout'); closing = false; }, 720);
+    };
     $('helpBtn').addEventListener('click', open); $('helpBtn2').addEventListener('click', open);
     $('helpClose').addEventListener('click', close);
     helpEl.addEventListener('click', e => { if (e.target === helpEl) close(); });
