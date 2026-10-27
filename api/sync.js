@@ -47,6 +47,14 @@ const isBlockedId = id => normForms(id).some(f => BLOCKED.some(w => f.includes(w
 const kstDay = (offset = 0) => new Date(Date.now() + 9 * 3600e3 - offset * 86400e3).toISOString().slice(0, 10);
 const IDX_KEY = 'lamancha:ids';   // 가입한 아이디 목록 (운영자 모니터링용, 점수=가입 시각). 비밀번호는 여기에 없다.
 const ID_RE = /^[A-Za-z0-9_가-힣]{3,20}$/;
+// 랭킹: 결정 횟수가 많은 순. 점수 = 결정 횟수 + (먼저 달성할수록 아주 조금 더 큼) → 같은 횟수면 먼저 도달한 사람이 위
+const RANK_KEY = 'lamancha:rank';
+const RANK_TOP = 10;
+const MIN_MS_PER_TURN = 400;   // 사람이 결정을 넘기는 최소 간격 (이보다 빠른 증가는 조작으로 본다)
+const MAX_STEP = 45;           // 서버에 한 번 알릴 때 늘어날 수 있는 최대 결정 수 (20번마다 알림 + 끝날 때)
+const MAX_TURNS = 5000;
+const runKey = id => 'lamancha:run:' + sha('id:' + id);
+const rankScore = turns => turns + (1 - Date.now() / 1e14);
 
 async function getUser(id) {
   const raw = await redis(['GET', userKey(id)]);
@@ -85,7 +93,7 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   const fail = (code, error) => res.status(code).json({ error });
   // 점검용: 주소창에서 이 주소를 열면 서버 상태(비밀값은 보여주지 않고 있음/없음만)를 알려 준다
-  if (req.method === 'GET') return res.status(200).json({ version: 2, adminPasswordSet: !!ADMIN_PW, adminPasswordLength: ADMIN_PW.length, storageConnected: !!(REDIS_URL && REDIS_TOKEN) });
+  if (req.method === 'GET') return res.status(200).json({ version: 3, adminPasswordSet: !!ADMIN_PW, adminPasswordLength: ADMIN_PW.length, storageConnected: !!(REDIS_URL && REDIS_TOKEN) });
   if (req.method !== 'POST') return fail(405, '잘못된 요청이에요.');
   if (!REDIS_URL || !REDIS_TOKEN) return fail(500, '서버 저장소가 아직 연결되지 않았어요.');
 
@@ -99,6 +107,19 @@ module.exports = async function handler(req, res) {
       await redis(['PFADD', 'lamancha:visit:' + kstDay(), cid]);
       await redis(['EXPIRE', 'lamancha:visit:' + kstDay(), 60 * 86400]);
       return res.status(200).json({ ok: true });
+    }
+    // 랭킹 보기: 누구나 볼 수 있다 (상위 몇 명의 아이디와 결정 횟수만). me 를 보내면 그 아이디의 순위도 알려 준다.
+    if (action === 'rankList') {
+      const flat = (await redis(['ZREVRANGE', RANK_KEY, 0, RANK_TOP - 1, 'WITHSCORES'])) || [];
+      const list = [];
+      for (let i = 0; i < flat.length; i += 2) if (flat[i] !== ADMIN_ID) list.push({ id: flat[i], turns: Math.floor(Number(flat[i + 1])) });   // 운영자는 랭킹에 나오지 않는다
+      let me = null;
+      const mid = String(b.me || '').trim().toLowerCase();
+      if (ID_RE.test(mid)) {
+        const sc = await redis(['ZSCORE', RANK_KEY, mid]);
+        if (sc !== null && sc !== undefined) me = { id: mid, turns: Math.floor(Number(sc)), rank: (Number(await redis(['ZREVRANK', RANK_KEY, mid])) || 0) + 1 };
+      }
+      return res.status(200).json({ ok: true, list, me });
     }
     const id = String(b.id || '').trim().toLowerCase();
     if (!ID_RE.test(id)) return fail(400, '아이디는 3~20자의 한글·영문·숫자·_ 만 쓸 수 있어요.');
@@ -159,6 +180,46 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, target });
     }
 
+    // 랭킹 기록: 새 판 시작(reset) / 20번마다 확인(runSync) / 판이 끝날 때(runEnd). 로그인한 일반 계정만, 서버가 잰 시간과 맞는 증가만 인정한다.
+    if (action === 'runSync' || action === 'runEnd') {
+      const user = await getUser(id);
+      if (!authed(user, b.token)) return fail(401, '로그인이 필요해요. 다시 로그인해 주세요.');
+      if (id === ADMIN_ID) return res.status(200).json({ ok: true, valid: false });
+      const turns = Math.floor(Number(b.turns));
+      if (!Number.isFinite(turns) || turns < 0 || turns > MAX_TURNS) return fail(400, '올바르지 않은 기록이에요.');
+      const rk = runKey(id), now = Date.now();
+      if (action === 'runSync' && b.reset) {
+        await redis(['SET', rk, JSON.stringify({ t: now, n: 0 }), 'EX', 30 * 86400]);
+        return res.status(200).json({ ok: true, valid: true });
+      }
+      const raw = await redis(['GET', rk]);
+      const cur = raw ? JSON.parse(raw) : null;
+      // 시간 적립 방식: 시간이 지난 만큼만 결정을 늘릴 수 있고(최대 MAX_STEP 만큼만 쌓임), 늘린 만큼 적립이 줄어든다 → 잦게 보내도 속도가 빨라지지 않는다
+      const tEff = cur ? Math.max(cur.t, now - MAX_STEP * MIN_MS_PER_TURN) : now;
+      const step = cur ? turns - cur.n : 0;
+      const valid = !!cur && step <= Math.floor((now - tEff) / MIN_MS_PER_TURN) + 3;
+      if (!valid) return res.status(200).json({ ok: true, valid: false });
+      const n = Math.max(cur.n, turns);
+      if (action === 'runEnd') await redis(['DEL', rk]);
+      else await redis(['SET', rk, JSON.stringify({ t: step > 0 ? tEff + step * MIN_MS_PER_TURN : cur.t, n }), 'EX', 30 * 86400]);
+      const adv = b.adv === true;   // 모험 모드를 켠 꿈만 랭킹에 올린다
+      if (n > 0 && adv) await redis(['ZADD', RANK_KEY, 'GT', String(rankScore(n)), id]);
+      const sc = await redis(['ZSCORE', RANK_KEY, id]);
+      const rank = sc === null || sc === undefined ? null : (Number(await redis(['ZREVRANK', RANK_KEY, id])) || 0) + 1;
+      return res.status(200).json({ ok: true, valid: true, adv, turns: n, best: sc ? Math.floor(Number(sc)) : null, rank });
+    }
+
+    // 운영자: 아이디를 입력하면 그 계정의 랭킹 기록을 지운다 (이상한 기록 정리용)
+    if (action === 'adminRankDelete') {
+      const adm = await getUser(id);
+      if (id !== ADMIN_ID || !authed(adm, b.token)) return fail(403, '운영자만 쓸 수 있어요.');
+      const target = String(b.target || '').trim().toLowerCase();
+      if (!ID_RE.test(target)) return fail(400, '올바른 아이디가 아니에요.');
+      const removed = Number(await redis(['ZREM', RANK_KEY, target])) || 0;
+      await redis(['DEL', runKey(target)]);
+      return res.status(200).json({ ok: true, target, removed });
+    }
+
     // 운영자: 방문 현황 (오늘·어제 방문한 기기 수)
     if (action === 'adminOnline') {
       const adm = await getUser(id);
@@ -198,6 +259,7 @@ module.exports = async function handler(req, res) {
       const target = String(b.target || '').trim().toLowerCase();
       if (!ID_RE.test(target) || target === ADMIN_ID) return fail(400, '올바른 아이디가 아니에요.');
       await redis(['ZREM', IDX_KEY, target]);   // 목록에 남은 흔적도 같이 정리
+      await redis(['ZREM', RANK_KEY, target]); await redis(['DEL', runKey(target)]);   // 랭킹 기록도 같이 지운다
       if (!(await getUser(target))) return fail(404, '그런 아이디는 없어요. (목록에서는 지웠어요)');
       await redis(['DEL', userKey(target)]);
       await redis(['DEL', 'lamancha:fail:' + sha('id:' + target)]);

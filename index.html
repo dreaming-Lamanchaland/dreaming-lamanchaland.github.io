@@ -320,7 +320,7 @@
   @media (prefers-reduced-motion: reduce){#lance.glow::before{animation:none; opacity:.8; transform:scale(1)}}
   @media (pointer:fine){html.lance, html.lance *{cursor:none !important} html.lance input, html.lance textarea{cursor:text !important}}
   #title{z-index:7}
-  #helpEl{z-index:10}
+  #helpEl,#rankEl{z-index:10}
   #titleArt img{display:block; width:100%; max-width:420px; height:auto; margin:0 auto 6px; filter:drop-shadow(0 6px 14px rgba(0,0,0,.55))}
   #ending{z-index:9}
   #quitAsk{z-index:9}
@@ -487,18 +487,18 @@
   .helpbtn{position:absolute; z-index:3; top:10px; right:10px; padding:5px 10px; font-size:.78rem; border:1px solid var(--line); border-radius:999px; background:rgba(34,12,15,.6); color:var(--muted); cursor:pointer}
   .helpbtn:hover,.helpbtn:focus-visible{color:#f1deb0; border-color:rgba(228,190,100,.5)}
   /* 게임 방법: 메모지 (위에 테이프를 붙인 줄 메모지) */
-  #helpEl .sheet{overflow:visible; text-align:center; position:relative; color:#3a2a1c; padding:30px 20px 18px 24px;
+  .memo .sheet{overflow:visible; text-align:center; position:relative; color:#3a2a1c; padding:30px 20px 18px 24px;
     background:linear-gradient(90deg, transparent 0 46px, rgba(200,70,60,.28) 46px 47px, transparent 47px), repeating-linear-gradient(to bottom, transparent 0 27px, rgba(80,120,170,.2) 27px 28px), linear-gradient(135deg,#fbf3b8,#f6e993);
     border:none; border-radius:3px 3px 10px 3px; box-shadow:0 10px 26px rgba(0,0,0,.6), 0 1px 0 rgba(255,255,255,.4) inset}
-  #helpEl .sheet::before{content:''; position:absolute; left:50%; top:-11px; width:96px; height:24px; margin-left:-48px; transform:rotate(-2.5deg); background:rgba(235,230,215,.78); box-shadow:0 1px 3px rgba(0,0,0,.35); clip-path:polygon(0 8%,4% 0,8% 10%,12% 0,16% 10%,84% 10%,88% 0,92% 10%,96% 0,100% 8%,100% 92%,96% 100%,92% 90%,88% 100%,84% 90%,16% 90%,12% 100%,8% 90%,4% 100%,0 92%)}
-  #helpEl .sheet > *{position:relative; z-index:1}
-  #helpEl .sheet h2{text-align:left; color:#8a2b24; font-family:inherit; border-bottom:2px solid rgba(138,43,36,.35); padding-bottom:6px}
+  .memo .sheet::before{content:''; position:absolute; left:50%; top:-11px; width:96px; height:24px; margin-left:-48px; transform:rotate(-2.5deg); background:rgba(235,230,215,.78); box-shadow:0 1px 3px rgba(0,0,0,.35); clip-path:polygon(0 8%,4% 0,8% 10%,12% 0,16% 10%,84% 10%,88% 0,92% 10%,96% 0,100% 8%,100% 92%,96% 100%,92% 90%,88% 100%,84% 90%,16% 90%,12% 100%,8% 90%,4% 100%,0 92%)}
+  .memo .sheet > *{position:relative; z-index:1}
+  .memo .sheet h2{text-align:left; color:#8a2b24; font-family:inherit; border-bottom:2px solid rgba(138,43,36,.35); padding-bottom:6px}
   #helpEl .hpage h3{color:#7a5410}
   #helpEl .hpage img{border:2px solid #8a7650; box-shadow:2px 3px 8px rgba(70,45,20,.35); transform:rotate(-.6deg)}
   #helpEl .hpage li b{border:1.5px solid #1c3a34}
   #helpEl #helpNav{color:#6b5a44}
-  #helpEl .secondary{background:rgba(90,60,30,.08); color:#4a3522; border:1px solid #b9a47c}
-  #helpEl .secondary:hover:not(:disabled){background:rgba(90,60,30,.16)}
+  .memo .secondary{background:rgba(90,60,30,.08); color:#4a3522; border:1px solid #b9a47c}
+  .memo .secondary:hover:not(:disabled){background:rgba(90,60,30,.16)}
   #helpBody{min-height:300px}
   .hpage{display:none; text-align:left}
   .hpage.on{display:block}
@@ -508,9 +508,9 @@
   .hpage li{display:flex; gap:8px; align-items:flex-start}
   .hpage li b{flex:none; width:19px; height:19px; margin-top:2px; border-radius:50%; background:#5bffde; color:#000; font-size:.72rem; line-height:19px; text-align:center}
   .hpage.txt p{font-size:.98rem; line-height:1.8; margin:0 0 14px}
-  #helpEl .sheet.spin{animation:helpspin .72s cubic-bezier(.45,.05,.3,1)}
+  .memo .sheet.spin{animation:helpspin .72s cubic-bezier(.45,.05,.3,1)}
   @keyframes helpspin{from{transform:perspective(900px) rotateY(0)} to{transform:perspective(900px) rotateY(360deg)}}
-  #helpEl .sheet.spinout{animation:helpspinout .72s cubic-bezier(.45,.05,.3,1) forwards}
+  .memo .sheet.spinout{animation:helpspinout .72s cubic-bezier(.45,.05,.3,1) forwards}
   @keyframes helpspinout{from{transform:perspective(900px) rotateY(0) scale(1); opacity:1} 75%{opacity:1} to{transform:perspective(900px) rotateY(360deg) scale(.85); opacity:0}}
   #helpNav{display:flex; align-items:center; justify-content:center; gap:18px; margin-top:10px; color:var(--muted); font-size:.9rem}
   #helpNav button{width:44px; padding:6px 0}
@@ -596,6 +596,17 @@
   #moon{mix-blend-mode:multiply; background:radial-gradient(ellipse 95% 42% at 50% -4%, rgba(60,125,190,.55), transparent 74%), radial-gradient(ellipse 60% 32% at 92% 3%, rgba(40,100,175,.38), transparent 74%), radial-gradient(ellipse 70% 30% at 6% 100%, rgba(60,110,170,.22), transparent 76%)}
   #app[data-adv="1"] .art::before,#app.moonburst .art::before{mix-blend-mode:multiply; background:radial-gradient(circle, rgba(55,115,185,.34) 0, rgba(70,130,195,.2) 38%, rgba(95,155,215,.3) 55%, transparent 68%)}
   #moonburst{mix-blend-mode:normal; background:radial-gradient(ellipse 85% 48% at 50% 30%, rgba(60,130,205,.6), rgba(40,100,170,.3) 48%, transparent 76%)}
+  #rankList{list-style:none; margin:0; padding:0; text-align:left; min-height:60px}
+  #rankList li{display:flex; align-items:baseline; gap:10px; padding:5px 6px; border-bottom:1px dashed rgba(90,60,30,.35); font-size:.95rem}
+  #rankList li b{flex:none; width:2.2em; color:#8a2b24; font-variant-numeric:tabular-nums}
+  #rankList li span{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  #rankList li em{flex:none; font-style:normal; color:#5b4b38; font-variant-numeric:tabular-nums}
+  #rankList li.me{background:rgba(220,90,60,.18); border-radius:4px; font-weight:700}
+  #rankList li.top b{font-size:1.05rem}
+  #rankList li.empty{justify-content:center; color:#7a6850; border:none; padding:18px 0}
+  #rankList li.adm{cursor:pointer}
+  .rankme{margin:10px 0 0; text-align:left; font-size:.88rem; color:#5b4b38}
+  .memo .sheet .muted{color:#6b5a44}
 </style>
 </head>
 <body>
@@ -624,7 +635,7 @@
       <button type="button" id="btnA"></button>
       <button type="button" id="btnB"></button>
     </div>
-    <p id="disclaimer">이 게임은 림버스 컴퍼니의 2차 창작 게임입니다.<br>Project Moon과는 직접적인 관련이 없습니다.<br>게임 관련 문의 : <a class="mail" href="mailto:lamanchaland.dreaming@gmail.com">lamanchaland.dreaming@gmail.com</a><br><span class="ver">v1.1.0</span></p>
+    <p id="disclaimer">이 게임은 림버스 컴퍼니의 2차 창작 게임입니다.<br>Project Moon과는 직접적인 관련이 없습니다.<br>게임 관련 문의 : <a class="mail" href="mailto:lamanchaland.dreaming@gmail.com">lamanchaland.dreaming@gmail.com</a><br><span class="ver">v1.1.1</span></p>
   </footer>
 </main>
 
@@ -653,12 +664,12 @@
     <div class="stack">
       <button type="button" class="primary" id="continueBtn" hidden>이어 꿈꾸기</button>
       <button type="button" class="primary" id="dreamBtn">꿈꾸기</button>
-      <button type="button" class="secondary" id="cdexBtn">도감</button>
+      <div class="btnrow" style="margin-top:0"><button type="button" class="secondary" id="cdexBtn">도감</button><button type="button" class="secondary" id="rankBtn">🏆 랭킹</button></div>
       <button type="button" class="secondary" id="easyBtn" role="switch" aria-checked="false">편하게 꿈꾸기 · 꺼짐</button>
       <button type="button" class="secondary" id="acctBtn">☁ 계정 · 기록 동기화</button>
     </div>
     <p class="muted" id="saveInfo" style="margin:12px 0 0"></p>
-    <p class="disclaimer">이 게임은 림버스 컴퍼니의 2차 창작 게임입니다.<br>Project Moon과는 직접적인 관련이 없습니다.<br>게임 관련 문의 : <a class="mail" href="mailto:lamanchaland.dreaming@gmail.com">lamanchaland.dreaming@gmail.com</a><br><span class="ver">v1.1.0</span></p>
+    <p class="disclaimer">이 게임은 림버스 컴퍼니의 2차 창작 게임입니다.<br>Project Moon과는 직접적인 관련이 없습니다.<br>게임 관련 문의 : <a class="mail" href="mailto:lamanchaland.dreaming@gmail.com">lamanchaland.dreaming@gmail.com</a><br><span class="ver">v1.1.1</span></p>
   </div>
 </div>
 
@@ -718,6 +729,7 @@
       <button type="button" class="secondary" id="admReset">이 아이디의 비밀번호를 lamancha1 로 초기화</button>
       <button type="button" class="secondary" id="admUnban" style="margin-top:6px">이 아이디의 로그인 차단 풀기</button>
       <button type="button" class="secondary" id="admDel" style="margin-top:6px">이 아이디의 계정 삭제</button>
+      <button type="button" class="secondary" id="admRankDel" style="margin-top:6px">이 아이디의 랭킹 기록 삭제</button>
       <div id="admBars"></div>
       <div id="admJump">
         <label class="field"><span>결정(턴) 수 — 계절과 하루가 이 값에 맞춰져요</span>
@@ -763,8 +775,19 @@
   </div>
 </div>
 
+<!-- 랭킹 -->
+<div id="rankEl" class="overlay memo" role="dialog" aria-modal="true" aria-labelledby="rankH">
+  <div class="sheet">
+    <h2 id="rankH">🏆 랭킹</h2>
+    <p class="muted" style="text-align:left;margin:0 0 8px">결정을 가장 많이 넘긴 기록이에요. 로그인한 계정으로 모험 모드까지 간 꿈만 올라가요.</p>
+    <ol id="rankList"></ol>
+    <p id="rankMe" class="rankme"></p>
+    <button type="button" class="secondary" id="rankClose" style="margin-top:10px">닫기</button>
+  </div>
+</div>
+
 <!-- 게임 방법 -->
-<div id="helpEl" class="overlay" role="dialog" aria-modal="true" aria-labelledby="helpH">
+<div id="helpEl" class="overlay memo" role="dialog" aria-modal="true" aria-labelledby="helpH">
   <div class="sheet">
     <h2 id="helpH">게임 방법</h2>
     <div id="helpBody"></div>
@@ -1166,6 +1189,8 @@
     if (ch.next) S.queue.push(ch.next);
     if (S.current.once) S.used.add(S.current.id);
     S.turn++;
+    checkAch();
+    if (S.turn % 20 === 0) rankReport('check');
 
     addLog('▸ ' + ch.label, 'pick');
     (ch.result || []).forEach(t => addLog(t, 'result'));
@@ -1211,6 +1236,7 @@
   /* ================= 엔딩 / 재시작 ================= */
   function finish(key){
     S.done = true;
+    rankEnd();
     if (key === 'final') {   // 진짜 마지막 엔딩: 도감에 세지 않고, 다시 꿈꾸기는 막힌다 (초기화만 가능)
       progress.final = true;
       track('end', { ending:key, turns:S.turn });
@@ -1266,6 +1292,7 @@
     { id:'sancho_20', hint:'산초 호감도 20 달성', name:'자식을 아끼는 자', desc:'산초 호감도 20 달성', test: () => (S.aff.sancho || 0) >= 20 },
     { id:'sancho_25', rare:true, hint:'산초 호감도 25 달성', name:'기둥 뒤 히든 이벤트 있어요', desc:'산초 호감도 25 달성', test: () => (S.aff.sancho || 0) >= 25 },
     { id:'sancho_max', legend:true, name:'이건 연애시뮬레이션 게임이 아니에요', desc:'산초 호감도를 최대로 올렸다', test: () => (S.aff.sancho || 0) >= ACH_SANCHO },
+    { id:'adv_200', legend:true, hint:'모험 모드를 켠 채로 오래 버티기', name:'이론상으로는 가능하다지만....', desc:'모험 모드를 켠 채로 200번째 결정까지 버텼다', test: () => !S.easy && S.flags.has('adventure') && S.turn >= 200 },
     { id:'park_all', legend:true, name:'이정도면 오래 운영했다', desc:'라만차랜드 운영 이벤트를 전부 봤다', test: () => dexCards().filter(c => !(c.tags || []).includes('adv')).every(c => (progress.cards || {})[c.id]) },
     { id:'stat_endings', legend:true, name:'이 상태로 모험을 떠나면..?', desc:'주요 엔딩 8개를 모두 보았다', test: () => ['harmony_low','harmony_high','fun_low','fun_high','fame_low','fame_high','kin_low','kin_high'].every(k => progress.endings[k]) },
     { id:'reject_all', hint:'니콜리나의 제안을 모두 반려하기', name:'어 안돼 돌아가', desc:'니콜리나의 어트랙션 기획서를 전부 반려했다', test: () => ['c048','c049','c050','c053'].every(id => (progress.rej || {})[id]) },
@@ -1469,7 +1496,8 @@
 
   // 화면(오버레이) 한꺼번에 닫기 — 새 오버레이를 만들면 이 목록에만 추가하면 된다
   const helpEl = $('helpEl');
-  const closeOverlays = () => [titleEl, quitAsk, acctEl, admPageEl, admStatsEl, endingEl, loadAsk, cardDexEl, helpEl].forEach(el => el.classList.remove('open', 'closing', 'opening'));
+  const rankEl = $('rankEl');
+  const closeOverlays = () => [titleEl, quitAsk, acctEl, admPageEl, admStatsEl, endingEl, loadAsk, cardDexEl, helpEl, rankEl].forEach(el => el.classList.remove('open', 'closing', 'opening'));
 
   /* ================= 마지막 엔딩 (도감 완성 + 모험 모드 FINAL.turn 이상) ================= */
   const FINAL = { turn: 170 };
@@ -1514,6 +1542,7 @@
     closeOverlays();
     logEl.innerHTML = '';
     newRun();
+    rankReport('start');
     app.classList.add('on');
     renderBars();
     const last = progress.lastRun;
@@ -1648,6 +1677,21 @@
       if (!res.ok) return { ok:false, status:res.status, msg: j.error || ('서버 오류 (' + res.status + ')') };
       return { ok:true, ...j };
     } catch(e){ return { ok:false, msg:'서버에 연결할 수 없어요. (배포된 주소에서만 동작합니다)' }; }
+  }
+  /* ----- 랭킹 기록: 새 판 시작 / 20번째 결정마다 / 끝날 때. 로그인한 일반 계정 + 편하게 꿈꾸기가 아닐 때만 ----- */
+  async function rankReport(kind){
+    const a = acct();
+    if (!API || !a || a.admin || !S || S.easy) return null;
+    return kind === 'start' ? await cloud('runSync', { reset:true, turns:0 })
+      : await cloud(kind === 'end' ? 'runEnd' : 'runSync', { turns: S.turn, adv: S.flags.has('adventure') });
+  }
+  async function rankEnd(){
+    if (!S || S.rankSent) return; S.rankSent = true;
+    const turns = S.turn, r = await rankReport('end');
+    if (!r || !r.ok || turns < 20) return;
+    if (r.valid && !r.adv) toast('모험 모드를 켜지 않은 꿈은 랭킹에 올라가지 않아요.', 4200);
+    else if (r.valid && r.rank) toast(`랭킹 ${r.rank}위 · 최고 기록 결정 ${r.best}번째`, 4200);
+    else if (!r.valid) toast('이번 꿈은 랭킹에 올라가지 않았어요.\n로그인한 상태에서 새로 꾼 꿈부터 기록돼요.', 4600);
   }
   function mergeProgress(remote){
     if (!remote || typeof remote !== 'object') return;
@@ -1787,6 +1831,40 @@
     saveNow(); msg('지금 상태를 세이브에 저장했어요.', true);
   });
   $('admFab').addEventListener('click', openAdm);
+  /* 랭킹 창 */
+  async function openRank(){
+    const a = acct(), box = $('rankList');
+    box.innerHTML = '<li class="empty">불러오는 중…</li>'; $('rankMe').textContent = '';
+    rankEl.classList.add('open'); $('rankClose').focus();
+    const r = await cloud('rankList', { me: a && a.id });
+    if (!rankEl.classList.contains('open')) return;
+    if (!r.ok) { box.innerHTML = `<li class="empty">${esc(r.msg || '랭킹을 불러올 수 없어요.')}</li>`; return; }
+    if (!r.list.length) { box.innerHTML = '<li class="empty">아직 기록이 없어요. 첫 번째가 되어 보세요!</li>'; }
+    else box.innerHTML = r.list.map((u, i) => `<li class="${i < 3 ? 'top ' : ''}${a && u.id === a.id ? 'me ' : ''}${a && a.admin ? 'adm' : ''}" data-id="${esc(u.id)}"><b>${i + 1}위</b><span>${esc(u.id)}</span><em>결정 ${u.turns}번째</em></li>`).join('');
+    $('rankMe').textContent = !a ? '로그인하면 내 기록이 랭킹에 올라가요. (시작 화면의 계정 버튼)' : a.admin ? '' : r.me ? `내 기록: ${r.me.rank}위 · 결정 ${r.me.turns}번째` : '아직 내 기록이 없어요. 로그인한 상태로 모험 모드까지 가 보세요.';
+  }
+  $('rankBtn').addEventListener('click', openRank);
+  $('rankClose').addEventListener('click', () => rankEl.classList.remove('open'));
+  rankEl.addEventListener('click', e => {
+    if (e.target === rankEl) { rankEl.classList.remove('open'); return; }
+    const li = e.target.closest && e.target.closest('li.adm'); const a = acct();
+    if (li && a && a.admin) { $('admTarget').value = li.dataset.id; toast(`"${li.dataset.id}" 를 운영자 도구의 대상 칸에 넣었어요.`, 2600); }
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && rankEl.classList.contains('open')) rankEl.classList.remove('open'); });
+  $('admRankDel').addEventListener('click', async () => {
+    const a = acct(); if (!a || !a.admin) return;
+    const t = $('admTarget').value.trim();
+    if (t.length < 3) { msg('랭킹에서 지울 유저의 아이디를 적어 주세요.'); return; }
+    const b = $('admRankDel');
+    if (b.dataset.arm !== t) {   // 두 번 눌러야 지워진다 (같은 아이디로)
+      b.dataset.arm = t; b.dataset.t = b.dataset.t || b.textContent; b.textContent = `"${t}" 의 랭킹 기록을 정말 삭제 — 한 번 더`;
+      setTimeout(() => { if (b.dataset.arm === t) { delete b.dataset.arm; b.textContent = b.dataset.t; } }, 4000); return;
+    }
+    delete b.dataset.arm; b.textContent = b.dataset.t;
+    msg('삭제 중…', true);
+    const r = await cloud('adminRankDelete', { target: t });
+    msg(r.ok ? (r.removed ? `"${r.target}" 의 랭킹 기록을 지웠어요.` : `"${r.target}" 는 랭킹에 기록이 없어요.`) : r.msg, r.ok);
+  });
   /* 게임 방법 */
   (function(){
     const body = $('helpBody');
@@ -1910,7 +1988,7 @@
     $('quitNo').focus();
   });
   $('quitNo').addEventListener('click', () => { quitAsk.classList.remove('open'); btnA.focus(); });
-  $('quitYes').addEventListener('click', () => { if (S && !S.done) track('quit', { turns:S.turn }); showTitle(); });
+  $('quitYes').addEventListener('click', () => { if (S && !S.done) { track('quit', { turns:S.turn }); rankEnd(); } showTitle(); });
 
   /* ================= 입력: 스와이프 / 버튼 / 키보드 ================= */
   card.addEventListener('pointerdown', e => {
@@ -1966,7 +2044,7 @@
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && app.classList.contains('logopen')) { closeLog(); return; }
     if (app.classList.contains('logopen')) return;
-    if ([gate, endingEl, titleEl, quitAsk, acctEl, admPageEl, admStatsEl, loadAsk, cardDexEl, helpEl].some(o => o.classList.contains('open'))) return;
+    if ([gate, endingEl, titleEl, quitAsk, acctEl, admPageEl, admStatsEl, loadAsk, cardDexEl, helpEl, rankEl].some(o => o.classList.contains('open'))) return;
     if (e.key === 'ArrowLeft')  choose('A');
     if (e.key === 'ArrowRight') choose('B');
   });
