@@ -1143,6 +1143,12 @@
   }
 
   // 엔딩 도감: 히든 엔딩은 본 뒤에만 목록과 총 개수에 포함
+  /* 도감 엔딩 칩 힌트: 수치 엔딩 8종만. 히든 엔딩은 조건을 알리지 않는다 */
+  function endHint(k){
+    const m = /^(harmony|fun|fame|kin)_(low|high)$/.exec(k); if (!m || DATA.endings[k].hidden) return '';
+    const nm = { harmony:'융화도', fun:'재미도', fame:'평판', kin:'직원 만족도' }[m[1]];
+    return `${nm} 게이지가 ${m[2] === 'low' ? '바닥까지 떨어진다' : '가득 찬다'}`;
+  }
   function dexInfo(){
     const keys = Object.keys(DATA.endings).filter(k => !DATA.endings[k].final && (!DATA.endings[k].hidden || progress.endings[k]));
     const got = keys.filter(k => progress.endings[k]).length;
@@ -1218,7 +1224,7 @@
     const all = dexCards(), seen = c => (progress.cards || {})[c.id];
     const groups = [['공원 운영', c => !c.season && !(c.tags || []).includes('adv')], ['계절 이야기', c => !!c.season && !(c.tags || []).includes('adv')], ['모험', c => (c.tags || []).includes('adv')]];
     const di = dexInfo();
-    const secs = [{ title: `엔딩 ${di.got} / ${di.keys.length}`, cont: '엔딩', chips: di.keys.map(k => { const has = progress.endings[k]; return `<span class="chip${has ? ' got' : ''}">${has ? esc(DATA.endings[k].title) : '???'}</span>`; }) }, {
+    const secs = [{ title: `엔딩 ${di.got} / ${di.keys.length}`, cont: '엔딩', chips: di.keys.map(k => { const has = progress.endings[k], h = endHint(k); return `<span class="chip${has ? ' got' : ''}"${h ? ` data-hint="${esc(h)}" tabindex="0"` : ''}>${has ? esc(DATA.endings[k].title) : '???'}</span>`; }) }, {
       title: `도전 과제 ${ACH.filter(a => (progress.ach || {})[a.id]).length} / ${ACH.length}`, cont: '도전 과제',
       chips: ACH.map(a => { const got = (progress.ach || {})[a.id]; return `<span class="chip${got ? ' got' : ''}${a.legend ? ' legend' : a.rare ? ' rare' : ''}"${got ? ` data-hint="${esc(a.desc)}" tabindex="0"` : (a.hint ? ` data-hint="${esc(a.hint)}" tabindex="0"` : '')}>${got ? '<span class="trophy">🏆</span> ' + esc(a.name) : '???'}</span>`; }),
     }];
