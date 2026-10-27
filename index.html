@@ -511,6 +511,23 @@
   .memo .sheet.spin{animation:helpspin .72s cubic-bezier(.45,.05,.3,1)}
   @keyframes helpspin{from{transform:perspective(900px) rotateY(0)} to{transform:perspective(900px) rotateY(360deg)}}
   .memo .sheet.spinout{animation:helpspinout .72s cubic-bezier(.45,.05,.3,1) forwards}
+  /* 랭킹 메모지: 메모지가 먼저 쓱 나오고 테이프가 나중에 붙음 / 닫을 땐 반대로 */
+  #rankEl.open .sheet{animation:memoIn .46s cubic-bezier(.2,.8,.25,1) both}
+  #rankEl.open .sheet::before{animation:tapeIn .3s .44s cubic-bezier(.3,1.3,.5,1) both}
+  #rankEl.closing{display:flex; pointer-events:none; animation:memoBg .76s linear forwards}
+  #rankEl.closing .sheet::before{animation:tapeOut .3s ease-in forwards}
+  #rankEl.closing .sheet{animation:memoOut .46s .28s cubic-bezier(.6,0,.8,.4) forwards}
+  #helpEl.min .sheet{animation:memoIn .46s cubic-bezier(.2,.8,.25,1) both}
+  #helpEl.min .sheet::before{animation:tapeIn .3s .44s cubic-bezier(.3,1.3,.5,1) both}
+  #helpEl.mclose{pointer-events:none; animation:memoBg .76s linear forwards}
+  #helpEl.mclose .sheet::before{animation:tapeOut .3s ease-in forwards}
+  #helpEl.mclose .sheet{animation:memoOut .46s .28s cubic-bezier(.6,0,.8,.4) forwards}
+  @keyframes memoIn{from{opacity:0; transform:translateY(70px) rotate(3deg)} to{opacity:1; transform:none}}
+  @keyframes tapeIn{from{opacity:0; transform:translateY(-18px) rotate(-12deg) scale(1.2)} to{opacity:1; transform:rotate(-2.5deg)}}
+  @keyframes tapeOut{from{opacity:1; transform:rotate(-2.5deg)} to{opacity:0; transform:translateY(-18px) rotate(-12deg) scale(1.2)}}
+  @keyframes memoOut{from{opacity:1; transform:none} to{opacity:0; transform:translateY(70px) rotate(3deg)}}
+  @keyframes memoBg{0%,35%{background:rgba(8,4,5,.95)} 100%{background:rgba(8,4,5,0)}}
+  @media (prefers-reduced-motion:reduce){#rankEl.open .sheet,#rankEl.open .sheet::before,#rankEl.closing,#rankEl.closing .sheet,#rankEl.closing .sheet::before,#helpEl.min .sheet,#helpEl.min .sheet::before,#helpEl.mclose,#helpEl.mclose .sheet,#helpEl.mclose .sheet::before{animation:none!important}#rankEl.closing{display:none}}
   @keyframes helpspinout{from{transform:perspective(900px) rotateY(0) scale(1); opacity:1} 75%{opacity:1} to{transform:perspective(900px) rotateY(360deg) scale(.85); opacity:0}}
   #helpNav{display:flex; align-items:center; justify-content:center; gap:18px; margin-top:10px; color:var(--muted); font-size:.9rem}
   #helpNav button{width:44px; padding:6px 0}
@@ -1497,7 +1514,7 @@
   // 화면(오버레이) 한꺼번에 닫기 — 새 오버레이를 만들면 이 목록에만 추가하면 된다
   const helpEl = $('helpEl');
   const rankEl = $('rankEl');
-  const closeOverlays = () => [titleEl, quitAsk, acctEl, admPageEl, admStatsEl, endingEl, loadAsk, cardDexEl, helpEl, rankEl].forEach(el => el.classList.remove('open', 'closing', 'opening'));
+  const closeOverlays = () => [titleEl, quitAsk, acctEl, admPageEl, admStatsEl, endingEl, loadAsk, cardDexEl, helpEl, rankEl].forEach(el => el.classList.remove('open', 'closing', 'opening', 'min', 'mclose'));
 
   /* ================= 마지막 엔딩 (도감 완성 + 모험 모드 FINAL.turn 이상) ================= */
   const FINAL = { turn: 170 };
@@ -1832,10 +1849,16 @@
   });
   $('admFab').addEventListener('click', openAdm);
   /* 랭킹 창 */
+  let rankT;
+  function closeRank(){
+    if (!rankEl.classList.contains('open')) return;
+    rankEl.classList.remove('open'); rankEl.classList.add('closing');
+    clearTimeout(rankT); rankT = setTimeout(() => rankEl.classList.remove('closing'), 780);
+  }
   async function openRank(){
     const a = acct(), box = $('rankList');
     box.innerHTML = '<li class="empty">불러오는 중…</li>'; $('rankMe').textContent = '';
-    rankEl.classList.add('open'); $('rankClose').focus();
+    clearTimeout(rankT); rankEl.classList.remove('closing'); rankEl.classList.add('open'); $('rankClose').focus();
     const r = await cloud('rankList', { me: a && a.id });
     if (!rankEl.classList.contains('open')) return;
     if (!r.ok) { box.innerHTML = `<li class="empty">${esc(r.msg || '랭킹을 불러올 수 없어요.')}</li>`; return; }
@@ -1844,13 +1867,13 @@
     $('rankMe').textContent = !a ? '로그인하면 내 기록이 랭킹에 올라가요. (시작 화면의 계정 버튼)' : a.admin ? '' : r.me ? `내 기록: ${r.me.rank}위 · 결정 ${r.me.turns}번째` : '아직 내 기록이 없어요. 로그인한 상태로 모험 모드까지 가 보세요.';
   }
   $('rankBtn').addEventListener('click', openRank);
-  $('rankClose').addEventListener('click', () => rankEl.classList.remove('open'));
+  $('rankClose').addEventListener('click', closeRank);
   rankEl.addEventListener('click', e => {
-    if (e.target === rankEl) { rankEl.classList.remove('open'); return; }
+    if (e.target === rankEl) { closeRank(); return; }
     const li = e.target.closest && e.target.closest('li.adm'); const a = acct();
     if (li && a && a.admin) { $('admTarget').value = li.dataset.id; toast(`"${li.dataset.id}" 를 운영자 도구의 대상 칸에 넣었어요.`, 2600); }
   });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && rankEl.classList.contains('open')) rankEl.classList.remove('open'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && rankEl.classList.contains('open')) closeRank(); });
   $('admRankDel').addEventListener('click', async () => {
     const a = acct(); if (!a || !a.admin) return;
     const t = $('admTarget').value.trim();
@@ -1896,13 +1919,14 @@
     $('helpPrev').addEventListener('click', () => show(pg - 1, 1)); $('helpNext').addEventListener('click', () => show(pg + 1, 1));
     document.addEventListener('keydown', e => { if (!helpEl.classList.contains('open')) return; if (e.key === 'ArrowLeft') { show(pg - 1, 1); e.preventDefault(); } else if (e.key === 'ArrowRight') { show(pg + 1, 1); e.preventDefault(); } });
     let sx = null; helpEl.addEventListener('pointerdown', e => { sx = e.clientX; }); helpEl.addEventListener('pointerup', e => { if (sx !== null && Math.abs(e.clientX - sx) > 50) show(pg + (e.clientX < sx ? 1 : -1), 1); sx = null; });
-    const open = () => { show(0); helpEl.classList.add('open'); $('helpClose').focus(); };
+    let minT = 0;
+    const open = () => { show(0); helpEl.classList.remove('mclose'); helpEl.classList.add('open', 'min'); clearTimeout(minT); minT = setTimeout(() => helpEl.classList.remove('min'), 900); $('helpClose').focus(); };
     let closing = false;
     const close = () => {   // 닫을 때도 한 바퀴 돌면서 사라진다
       if (!helpEl.classList.contains('open') || closing) return;
       if (matchMedia('(prefers-reduced-motion: reduce)').matches) { helpEl.classList.remove('open'); return; }
-      closing = true; const sh = helpEl.firstElementChild; clearTimeout(spinT); sh.classList.remove('spin'); void sh.offsetWidth; sh.classList.add('spinout');
-      setTimeout(() => { helpEl.classList.remove('open'); sh.classList.remove('spinout'); closing = false; }, 720);
+      closing = true; const sh = helpEl.firstElementChild; clearTimeout(spinT); clearTimeout(minT); sh.classList.remove('spin'); helpEl.classList.remove('min'); helpEl.classList.add('mclose');
+      setTimeout(() => { helpEl.classList.remove('open', 'mclose'); closing = false; }, 780);
     };
     $('helpBtn').addEventListener('click', open); $('helpBtn2').addEventListener('click', open);
     $('helpClose').addEventListener('click', close);
