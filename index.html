@@ -511,6 +511,8 @@
   .hpage.txt p{font-size:.98rem; line-height:1.8; margin:0 0 14px}
   .memo .sheet.spin{animation:helpspin .72s cubic-bezier(.45,.05,.3,1)}
   @keyframes helpspin{from{transform:perspective(900px) rotateY(0)} to{transform:perspective(900px) rotateY(360deg)}}
+  .memo .sheet.spin.rev{animation-name:helpspinrev}
+  @keyframes helpspinrev{from{transform:perspective(900px) rotateY(0)} to{transform:perspective(900px) rotateY(-360deg)}}
   .memo .sheet.spinout{animation:helpspinout .72s cubic-bezier(.45,.05,.3,1) forwards}
   /* 랭킹 메모지: 메모지가 먼저 쓱 나오고 테이프가 나중에 붙음 / 닫을 땐 반대로 */
   #rankEl.open .sheet{animation:memoIn .46s cubic-bezier(.2,.8,.25,1) both}
@@ -1911,8 +1913,8 @@
     const show = (n, spin) => {
       const to = Math.max(0, Math.min(imgs.length - 1, n));
       if (spin && to !== pg && !matchMedia('(prefers-reduced-motion: reduce)').matches) {   // 페이지가 넘어갈 때 카드가 한 바퀴 빙글 돈다 (옆면이 보이는 순간에 내용 교체)
-        const sh = helpEl.firstElementChild; clearTimeout(spinT); sh.classList.remove('spin'); void sh.offsetWidth; sh.classList.add('spin');
-        spinT = setTimeout(() => apply(to), 190); setTimeout(() => sh.classList.remove('spin'), 760); return;
+        const sh = helpEl.firstElementChild; clearTimeout(spinT); sh.classList.remove('spin', 'rev'); void sh.offsetWidth; sh.classList.toggle('rev', to < pg); sh.classList.add('spin');   // 이전 장으로 갈 땐 반대 방향으로 돈다
+        spinT = setTimeout(() => apply(to), 190); setTimeout(() => sh.classList.remove('spin', 'rev'), 760); return;
       }
       apply(to);
     };
