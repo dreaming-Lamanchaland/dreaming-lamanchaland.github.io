@@ -321,6 +321,7 @@
   @media (pointer:fine){html.lance, html.lance *{cursor:none !important} html.lance input, html.lance textarea{cursor:text !important}}
   #title{z-index:7}
   #helpEl,#rankEl{z-index:10}
+  #helpEl{touch-action:pan-y}
   #titleArt img{display:block; width:100%; max-width:420px; height:auto; margin:0 auto 6px; filter:drop-shadow(0 6px 14px rgba(0,0,0,.55))}
   #ending{z-index:9}
   #quitAsk{z-index:9}
@@ -1918,7 +1919,15 @@
     const apply = n => { pg = Math.max(0, Math.min(imgs.length - 1, n)); imgs.forEach((im, i) => im.classList.toggle('on', i === pg)); $('helpPg').textContent = (pg + 1) + ' / ' + imgs.length; $('helpPrev').disabled = pg === 0; $('helpNext').disabled = pg === imgs.length - 1; };
     $('helpPrev').addEventListener('click', () => show(pg - 1, 1)); $('helpNext').addEventListener('click', () => show(pg + 1, 1));
     document.addEventListener('keydown', e => { if (!helpEl.classList.contains('open')) return; if (e.key === 'ArrowLeft') { show(pg - 1, 1); e.preventDefault(); } else if (e.key === 'ArrowRight') { show(pg + 1, 1); e.preventDefault(); } });
-    let sx = null; helpEl.addEventListener('pointerdown', e => { sx = e.clientX; }); helpEl.addEventListener('pointerup', e => { if (sx !== null && Math.abs(e.clientX - sx) > 50) show(pg + (e.clientX < sx ? 1 : -1), 1); sx = null; });
+    let sx = null, sy = 0;
+    const sw0 = (x, y) => { sx = x; sy = y; };
+    const sw1 = (x, y) => { if (sx !== null && Math.abs(x - sx) > 50 && Math.abs(x - sx) > Math.abs(y - sy) * 1.2) show(pg + (x < sx ? 1 : -1), 1); sx = null; };
+    // 폰: 터치 이벤트로 직접 처리 (브라우저가 스크롤로 가져가 pointerup이 안 오는 문제 방지) / PC: 마우스 드래그
+    helpEl.addEventListener('touchstart', e => { const t = e.changedTouches[0]; sw0(t.clientX, t.clientY); }, { passive: true });
+    helpEl.addEventListener('touchend', e => { const t = e.changedTouches[0]; sw1(t.clientX, t.clientY); }, { passive: true });
+    helpEl.addEventListener('touchcancel', () => { sx = null; }, { passive: true });
+    helpEl.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse') sw0(e.clientX, e.clientY); });
+    helpEl.addEventListener('pointerup', e => { if (e.pointerType === 'mouse') sw1(e.clientX, e.clientY); });
     let minT = 0;
     const open = () => { show(0); helpEl.classList.remove('mclose'); helpEl.classList.add('open', 'min'); clearTimeout(minT); minT = setTimeout(() => helpEl.classList.remove('min'), 900); $('helpClose').focus(); };
     let closing = false;
