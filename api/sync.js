@@ -53,12 +53,27 @@ const RANK_TOP = 10;
 const MIN_MS_PER_TURN = 400;   // 사람이 결정을 넘기는 최소 간격 (이보다 빠른 증가는 조작으로 본다)
 const MAX_STEP = 45;           // 서버에 한 번 알릴 때 늘어날 수 있는 최대 결정 수 (20번마다 알림 + 끝날 때)
 const MAX_TURNS = 5000;
+const ID_CHANGE_COOLDOWN = 7 * 86400e3;   // 유저가 스스로 아이디를 바꿀 수 있는 간격
 const runKey = id => 'lamancha:run:' + sha('id:' + id);
 const rankScore = turns => turns + (1 - Date.now() / 1e14);
 
 async function getUser(id) {
   const raw = await redis(['GET', userKey(id)]);
   return raw ? JSON.parse(raw) : null;
+}
+// 아이디 바꾸기: 계정(비밀번호·세이브·도감) · 가입 순서 · 랭킹 · 진행 중인 꿈 기록을 새 아이디로 옮긴다. 새 아이디가 이미 있으면 false.
+async function moveAccount(target, to, user) {
+  const ok = await redis(['SET', userKey(to), JSON.stringify(user), 'NX']);
+  if (ok !== 'OK') return false;
+  const at = await redis(['ZSCORE', IDX_KEY, target]);
+  await redis(['ZADD', IDX_KEY, String(at || Date.now()), to]); await redis(['ZREM', IDX_KEY, target]);
+  const sc = await redis(['ZSCORE', RANK_KEY, target]);
+  if (sc !== null && sc !== undefined) { await redis(['ZADD', RANK_KEY, String(sc), to]); await redis(['ZREM', RANK_KEY, target]); }
+  const run = await redis(['GET', runKey(target)]);
+  if (run) { await redis(['SET', runKey(to), run, 'EX', 30 * 86400]); await redis(['DEL', runKey(target)]); }
+  await redis(['DEL', userKey(target)]);
+  await redis(['DEL', 'lamancha:fail:' + sha('id:' + target)]);
+  return true;
 }
 async function issueToken(user, id) {
   const token = crypto.randomBytes(24).toString('hex');
@@ -264,6 +279,43 @@ module.exports = async function handler(req, res) {
       await redis(['DEL', userKey(target)]);
       await redis(['DEL', 'lamancha:fail:' + sha('id:' + target)]);
       return res.status(200).json({ ok: true, target });
+    }
+
+    // 운영자: 아이디를 새 아이디로 바꿔 준다 (실명처럼 보이는 아이디 정리용). 비밀번호·세이브·도감·랭킹·가입 순서는 그대로 옮기고,
+    // 로그인돼 있던 기기는 로그아웃된다 (새 아이디 + 원래 비밀번호로 다시 로그인).
+    if (action === 'adminRename') {
+      const adm = await getUser(id);
+      if (id !== ADMIN_ID || !authed(adm, b.token)) return fail(403, '운영자만 쓸 수 있어요.');
+      const target = String(b.target || '').trim().toLowerCase();
+      const to = String(b.newId || '').trim().toLowerCase();
+      if (!ID_RE.test(target) || target === ADMIN_ID) return fail(400, '바꿀 아이디가 올바르지 않아요.');
+      if (!ID_RE.test(to)) return fail(400, '새 아이디는 3~20자의 한글·영문·숫자·_ 만 쓸 수 있어요.');
+      if (to === ADMIN_ID || isBlockedId(to)) return fail(400, '사용할 수 없는 새 아이디예요.');
+      if (to === target) return fail(400, '지금 아이디와 같아요.');
+      const user = await getUser(target);
+      if (!user) return fail(404, '그런 아이디는 없어요.');
+      user.tokens = [];   // 옛 아이디로 로그인된 기기는 모두 로그아웃
+      if (!(await moveAccount(target, to, user))) return fail(409, '새 아이디가 이미 있어요.');
+      return res.status(200).json({ ok: true, target, to });
+    }
+
+    // 유저: 로그인한 상태에서 자기 아이디 바꾸기 (비밀번호 확인 필요, 7일에 한 번, 이 기기는 로그인 유지 / 다른 기기는 로그아웃)
+    if (action === 'changeId') {
+      if (id === ADMIN_ID) return fail(400, '운영자 아이디는 바꿀 수 없어요.');
+      const user = await getUser(id);
+      if (!authed(user, b.token)) return fail(401, '로그인이 필요해요. 다시 로그인해 주세요.');
+      if (!same(hashPw(String(b.password || ''), user.salt), user.hash)) return fail(401, '비밀번호가 맞지 않아요.');
+      const to = String(b.newId || '').trim().toLowerCase();
+      if (!ID_RE.test(to)) return fail(400, '새 아이디는 3~20자의 한글·영문·숫자·_ 만 쓸 수 있어요.');
+      if (to === ADMIN_ID || isBlockedId(to)) return fail(400, '사용할 수 없는 아이디예요. 다른 아이디를 써 주세요.');
+      if (to === id) return fail(400, '지금 아이디와 같아요.');
+      const wait = (user.idChanged || 0) + ID_CHANGE_COOLDOWN - Date.now();
+      if (wait > 0) return fail(429, `아이디는 ${Math.ceil(wait / 86400000)}일 뒤에 다시 바꿀 수 있어요.`);
+      const token = crypto.randomBytes(24).toString('hex');
+      user.tokens = [sha(token)];   // 다른 기기는 로그아웃
+      user.idChanged = Date.now();
+      if (!(await moveAccount(id, to, user))) return fail(409, '이미 있는 아이디예요.');
+      return res.status(200).json({ ok: true, id: to, token });
     }
 
     // 유저: 로그인한 상태에서 자기 비밀번호 바꾸기 (현재 비밀번호 확인 필요, 다른 기기는 로그아웃)
