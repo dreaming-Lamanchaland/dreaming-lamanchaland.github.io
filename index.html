@@ -719,6 +719,15 @@
         <button type="button" class="secondary" id="admOpen" hidden>🛠 운영자 도구 열기</button>
         <button type="button" class="secondary" id="logoutBtn">로그아웃</button>
       </div>
+      <details id="idBox" style="margin-top:12px">
+        <summary>아이디 바꾸기</summary>
+        <label class="field" style="margin-top:8px"><span>새 아이디 (3~20자, 한글·영문·숫자·_)</span>
+          <input id="idNew" autocapitalize="off" spellcheck="false" maxlength="20"></label>
+        <label class="field"><span>비밀번호</span>
+          <input id="idPw" type="password" autocomplete="current-password" maxlength="100"></label>
+        <p class="muted" style="margin:0 0 6px">저장 기록·도감·랭킹은 그대로 옮겨져요. 아이디는 랭킹에 공개되고, 7일에 한 번 바꿀 수 있어요. 다른 기기에서는 새 아이디로 다시 로그인해야 해요.</p>
+        <button type="button" class="secondary" id="idBtn">아이디 변경</button>
+      </details>
       <details id="pwBox" style="margin-top:12px">
         <summary>비밀번호 바꾸기</summary>
         <label class="field" style="margin-top:8px"><span>현재 비밀번호</span>
@@ -751,6 +760,9 @@
       <button type="button" class="secondary" id="admUnban" style="margin-top:6px">이 아이디의 로그인 차단 풀기</button>
       <button type="button" class="secondary" id="admDel" style="margin-top:6px">이 아이디의 계정 삭제</button>
       <button type="button" class="secondary" id="admRankDel" style="margin-top:6px">이 아이디의 랭킹 기록 삭제</button>
+      <label class="field" style="margin-top:10px"><span>바꿀 새 아이디 (아래 버튼에 쓰여요)</span>
+        <input id="admNewId" autocapitalize="off" spellcheck="false" maxlength="20"></label>
+      <button type="button" class="secondary" id="admRename">이 아이디를 새 아이디로 변경</button>
       <div id="admBars"></div>
       <div id="admJump">
         <label class="field"><span>결정(턴) 수 — 계절과 하루가 이 값에 맞춰져요</span>
@@ -1827,6 +1839,15 @@
     if (r.ok) $('admTarget').value = ''; 
     if (r.ok && admStatsEl.classList.contains('open')) loadStats();
   });
+  $('idBtn').addEventListener('click', async () => {
+    const n = $('idNew').value.trim(), pw = $('idPw').value;
+    if (n.length < 3 || !pw) { msg('새 아이디와 비밀번호를 적어 주세요.'); return; }
+    msg('바꾸는 중…', true);
+    const r = await cloud('changeId', { newId: n, password: pw });
+    if (r.status === 401 && /로그인이/.test(r.msg || '')) { store.del(ACCT_KEY); renderAcct(); }
+    if (r.ok) { const a = store.get(ACCT_KEY) || {}; store.set(ACCT_KEY, { ...a, id: r.id, token: r.token }); $('idNew').value = ''; $('idPw').value = ''; $('idBox').open = false; renderAcct(); }
+    msg(r.ok ? `아이디를 "${r.id}" 로 바꿨어요.` : r.msg, r.ok);
+  });
   $('pwBtn').addEventListener('click', async () => {
     const o = $('pwOld').value, n = $('pwNew').value;
     if (!o || n.length < 6) { msg('현재 비밀번호와 6자 이상의 새 비밀번호를 적어 주세요.'); return; }
@@ -1891,6 +1912,21 @@
     msg('삭제 중…', true);
     const r = await cloud('adminRankDelete', { target: t });
     msg(r.ok ? (r.removed ? `"${r.target}" 의 랭킹 기록을 지웠어요.` : `"${r.target}" 는 랭킹에 기록이 없어요.`) : r.msg, r.ok);
+  });
+  $('admRename').addEventListener('click', async () => {
+    const a = acct(); if (!a || !a.admin) return;
+    const t = $('admTarget').value.trim(), n = $('admNewId').value.trim();
+    if (t.length < 3 || n.length < 3) { msg('대상 유저 아이디와 바꿀 새 아이디를 둘 다 적어 주세요.'); return; }
+    const b = $('admRename'), key = t + '>' + n;
+    if (b.dataset.arm !== key) {   // 두 번 눌러야 바뀐다
+      b.dataset.arm = key; b.dataset.t = b.dataset.t || b.textContent; b.textContent = `"${t}" → "${n}" 정말 변경 — 한 번 더`;
+      setTimeout(() => { if (b.dataset.arm === key) { delete b.dataset.arm; b.textContent = b.dataset.t; } }, 4000); return;
+    }
+    delete b.dataset.arm; b.textContent = b.dataset.t;
+    msg('변경 중…', true);
+    const r = await cloud('adminRename', { target: t, newId: n });
+    msg(r.ok ? `"${r.target}" → "${r.to}" 로 바꿨어요. 그 유저는 새 아이디와 원래 비밀번호로 다시 로그인해야 해요.` : r.msg, r.ok);
+    if (r.ok) { $('admTarget').value = ''; $('admNewId').value = ''; if (admStatsEl.classList.contains('open')) loadStats(); }
   });
   /* 게임 방법 */
   (function(){
